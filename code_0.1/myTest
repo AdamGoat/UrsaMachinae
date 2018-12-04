@@ -1,0 +1,6 @@
+tessdata_dir_config = r'--tessdata-dir "/hom/pi/Documents/code_0.1/tessdata"'
+# Example config: r'--tessdata-dir "C:\Program Files (x86)\Tesseract-OCR\tessdata"'
+# It's important to add double quotes around the dir path.
+
+pytesseract.image_to_string(image, lang='chi_sim', config=tessdata_dir_config)
+pytesseract.image_to_data(image,None,'--psm 10',0,Output.STRING)

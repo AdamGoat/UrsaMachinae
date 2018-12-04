@@ -1,0 +1,17 @@
+from PIL import *
+from pytesser import *
+import sys
+
+for x in range (1,len(sys.argv)):
+	image_file = sys.argv[x]
+	im = Image.open(image_file)
+	text = image_to_string(im)
+	print ("=====output=====\n")
+	print (text)
+	print ("=====Text2======\n")
+	text2 = image_file_to_string(image_file,None)
+	print (text2)
+	print ("=====Text3======\n")
+	text3 = image_file_to_string(image_file,graceful_errors=True)
+	print (text3)
+	print ("======Done======\n")

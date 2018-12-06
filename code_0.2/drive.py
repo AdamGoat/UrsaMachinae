@@ -1,7 +1,7 @@
 import MotorMagic
 from MotorMagic import *
 import encoder_attempt
-from encoder_attempt import * 
+from encoder_attempt import *
 import rotary_encoder
 
 ENCODER1_PINA = 17
@@ -15,13 +15,24 @@ ENCODER4
 
 
 global pos1
+global NS, EW #NS = North/South EW = East/West
+global cardinal
+global moveDir
+global NORTH = 0
+global EAST = 1
+global SOUTH = 2
+global WEST = 3
+
+global posChange
 
 def callback1(way):
     #global pos1
     pos1 += way
+    if dir == NORTH:
+	NS += way
     print("pos1={}".format(pos1))
 
-def callback2(way):
+def callback2(way): b
     global pos2
     pos2 += way
     print("pos2{}".format(pos2))

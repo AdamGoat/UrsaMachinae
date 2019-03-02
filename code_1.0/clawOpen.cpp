@@ -11,7 +11,7 @@
 #define ARDUINOPIN	 17
 #define SERVOPIN	 18 		//Dosn't change servo pin, just for record keeping
 #define MIN_SERVO	 500
-#define	MAX_SERVO	 1500
+#define	MAX_SERVO	 2500
 
 using namespace std;
 

@@ -29,7 +29,7 @@ class position{
 		curPos.NS = 0;
 		curPos.EW = 0;
 		curPos.ang = 0;
-		curPos.claw = 1;
+		curPos.claw = 0;
 		curPos.lift = 1;
 	}
 	pos getCurrentPos(){

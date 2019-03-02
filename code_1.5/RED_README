@@ -1,0 +1,30 @@
+REQUIRES
+
+One or more rotary encoders, each connected to a pair of GPIO.
+
+TO BUILD
+
+gcc -Wall -pthread -o RED test_RED.c RED.c -lpigpiod_if2
+
+TO RUN
+
+sudo pigpiod # If the daemon is not already running
+
+then
+
+./RED -a7 -b8 -s30 # Show encoder on 7/8 detents for 30 seconds.
+
+or
+
+./RED -a5 -b6 -m1 # Show encoder on 5/6 steps forever.
+
+or
+
+./RED -? # for help
+
+RED returns the current position at each change.
+
+DOWNLOAD & INSTALL (pigpio)
+
+http://abyz.co.uk/rpi/pigpio/download.html
+

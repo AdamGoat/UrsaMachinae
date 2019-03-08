@@ -15,7 +15,11 @@
 #include <pigpio.h>
 #include  "RED.h"
 
+#include <wiringSerial.h>
+
 //enum Directions {N, E, S, W};
+
+using namespace std;
 
 struct pos{
 	double NS;
@@ -25,6 +29,10 @@ struct pos{
 	double ang;
 	int claw;
 	int lift;
+	int camera;
+	int twist;
+	char loadZone;
+	char dumpZone;
 };
 
 class position{
@@ -34,9 +42,13 @@ class position{
 		curPos.NS = 0;
 		curPos.EW = 0;
 		curPos.ang = 0;
-		curPos.claw = 0;
+		curPos.claw = 1;
 		curPos.lift = 1;
 		curPos.facing = 0;
+		curPos.camera = 0;
+		curPos.twist = 0;
+		curPos.loadZone = 'A';
+		curPos.dumpZone = 'A';
 	}
 	pos getCurrentPos(){
 		return curPos;
@@ -83,6 +95,56 @@ class position{
 		curPos.claw %= 2;
 		return curPos.claw;
 	}
+	int getCameraPos(){
+		// 0 = down
+		// 1 = up
+		return curPos.camera;
+	}
+	int switchCameraPos(){
+		curPos.camera++;
+		curPos.camera %= 2;
+		return curPos.camera;
+	}
+	int getTwistPos(){
+		// 0 = in
+		// 1 = out
+		return curPos.twist;
+	}
+	int switchTwistPos(){
+		curPos.twist++;
+		curPos.twist %= 2;
+		return curPos.twist;
+	}
+	char getLoadZone(){
+		//A = A 
+		//B = B
+		//C = C
+		//D = F
+		//E = E
+		//F = D
+		return curPos.loadZone;
+	}
+	char getDumpZone(){
+		//A = AF
+		//B = BE
+		//C = CD
+		return curPos.dumpZone;
+	}
+	char incLoadZone(){
+		curPos.loadZone++;
+		cout << "Inc load to " << curPos.loadZone << endl;
+		if (curPos.loadZone > 'F'){
+			cout << "IncLoad wrap " << curPos.loadZone << endl;
+			curPos.loadZone = 'A';
+		}
+		return curPos.loadZone;
+	}
+	char decLoadZone(){
+		curPos.loadZone--;
+		if (curPos.loadZone < 'A')
+			curPos.loadZone ='F';
+		return curPos.loadZone;
+	}
 };
 
 int goForward(int distance,int facing);
@@ -97,5 +159,14 @@ int closeClaw();
 int haltClaw();
 int halt();
 void ctrl_c_handler(int s);
+int checkEncoder(int stop);
+int cameraUp();
+int cameraDown();
+int twistIn();
+int twistOut();
+char rotateToLoad(char load);
+void switchToDump();
+char rotateToDump(char dump);
 
-position RobotPosition;
+
+//position RobotPosition;

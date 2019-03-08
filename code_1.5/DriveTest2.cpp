@@ -1,19 +1,23 @@
-#include "DriveTest1.h"
+#include "DriveTest2.h"
 
-#define FORWARDSPEED 	 110
+#define FORWARDSPEED 	 200
 #define STRAFESPEED  	 250
 #define PIVOTSPEED		 100
-#define UP		 	 BACKWARD
-#define DOWN		 FORWARD
+#define UP		 	 FORWARD
+#define DOWN		 BACKWARD
 #define LIFTSPEED	 250
-#define LIFTTIME	 2650000
-#define LOWERTIME	 1300000
+#define LIFTTIME	 8450000
+#define LOWERTIME	 8300000
 #define PIVOTTIME	 3500000
-#define PICTURETIME	 80000
-#define ARDUINOPIN	 17   
-#define SERVOPIN	 18 		//Dosn't change servo pin, just for record keeping
+#define TWISTSERVOPIN	18 
+#define GRIPPERSERVOPIN 17
+#define CAMERASERVOPIN	24
 #define MIN_SERVO	 600
-#define	MAX_SERVO	 1500
+#define	MAX_SERVO	 2400
+#define CAMERAUP	 1600
+#define CAMERADOWN	 900
+#define TWISTIN 	 2400
+#define TWISTOUT 	 500
 #define FORWARDTIME1 2600000
 #define FORWARDTIME2 870000
 #define FORWARDTIME3 6600000
@@ -22,7 +26,7 @@
 #define NSFACING	 0
 #define EWFACING	 1
 #define PIVOTTICKS	 675000
-#define TICKSPERFOOT 	 2000000
+#define TICKSPERFOOT 2000000
 
 
 using namespace std;
@@ -37,7 +41,10 @@ Adafruit_DCMotor& backRight  = hat.getDC(4);
 
 Adafruit_DCMotor& liftMotor  = hat2.getDC(1);
 
-position robotPos;
+position RobotPosition;
+int fdArduino;
+int fdJevois;
+int pi;
 
 void ctrl_c_handler(int s){
 	cout << "Caught signal " << s << endl;
@@ -54,35 +61,38 @@ void ctrl_c_handler(int s){
 	exit(1);
 }
 
-void encoderCallback(int pos){
-	if(robotPos.curPos.facing % 2 == 0){
-		robotPos.moveNS(pos);
-		cout << "NS: " << robotPos.curPos.NS << endl;
-	}else{
-		robotPos.moveEW(pos);
-		cout << "EW: " << robotPos.curPos.EW << endl;
-	}
-}
 
 int main(){
 	
 	signal(2, ctrl_c_handler);
 	
-	if (gpioInitialise() < 0) return -1;
+	//if (gpioInitialise() < 0) return -1;
 	
-	int pi;
-	RED_t *renc;
-	RED_CB_t cb;
-	cb = encoderCallback;
+	//int fdArduino = -1; 
+	cout << "Open Arduino" << endl;
+	fdArduino = serialOpen("/dev/ttyACM0", 57600);
+	cout << "fdArduino = " << fdArduino << endl;
+	if (fdArduino < 0) {
+		cout << "ERROR!!! Can't talk to Arduino!" << endl;
+		return 2;
+	}
+	char ch;
+	while(ch != '\n'){
+		ch = (char)serialGetchar(fdArduino);
+		cout << ch;
+	}
+	cout << "Arduino Open" << endl;
 	
+	cout << "Open Jevois" << endl;
+	fdJevois = serialOpen("/dev/ttyACM1", 115200);
+	cout << "fdJevois = " << fdJevois << endl;
+	if (fdJevois < 0) {
+		cout << "ERROR!!! Can't talk to jevois!" << endl;
+		return 3;
+	}
+	cout << "Jevois Open" << endl;
 	
 	pi = pigpio_start(NULL,NULL); /* Connect to Pi. */
-	
-	if (pi >= 0)
-	{
-		renc = RED(pi, ENCODERPINA, ENCODERPINB, RED_MODE_DETENT, cb);
-	}
-	
 	
 	double startX = 4.0;
 	double startY = 4.0;
@@ -114,9 +124,9 @@ int main(){
 	goForward(ticksY,NSFACING);
 	
 	sleep(1);
-	cout << "Facing = " << robotPos.curPos.facing << endl;
+	cout << "Facing = " << robotPosition.curPos.facing << endl;
 	if(ticksX < 0){
-		while(robotPos.curPos.facing != 3){
+		while(robotPosition.curPos.facing != 3){
 			cout << "Turn Right - West" << endl;
 			pivotRight(1);
 		}
@@ -130,12 +140,28 @@ int main(){
 	goForward(ticksX,EWFACING);
 	halt();*/
 		
-	
-	
-	goForward(10000+153+11, NSFACING);
+	cameraUp();
+	openClaw();
+	twistOut();
+	rotateToLoad('B');
 	sleep(2);
+	lowerClaw();
+	wait(NULL);
+	//goForward(620, NSFACING);
+	//checkEncoder(650);
+	halt();
+	liftClaw();
+	wait(NULL);
+	//sleep(16);
+	twistIn();
+	rotateToLoad('A');
+	closeClaw();
+	cameraDown();
+	//openClaw();
+	
+	/*sleep(2);
 	pivotLeft(2);
-	sleep(2);
+	sleep(2);*/
 	/*pivotRight(1);
 	sleep(5);
 	pivotRight(2);
@@ -143,8 +169,35 @@ int main(){
 	pivotRight(1);*/
 
 	//goForward(27750*3*2000,NSFACING);
-
+	serialClose(fdArduino);
+	serialClose(fdJevois);
+	pigpio_stop(pi);
+	cout << "End of Program" << endl;
 	return 0;
+}
+
+int checkEncoder(int stop){
+		char ch = '0';
+		char numString[10] = {'\0','\0','\0','\0','\0','\0','\0','\0','\0','\0'};
+		int num = -1;
+		int n = 0;
+		cout << "Start Check Encoder: " << stop << endl; 
+		while(num < stop){
+			while(ch != '\n'){
+				ch = (char)serialGetchar(fdArduino);
+				numString[n] = ch;
+				n++;
+				//cout << ch;
+			}
+			numString[n] = '\0';
+			n--;
+			num = atoi(numString);
+			cout << num << endl;
+			n = 0;
+			ch = '0';
+		}
+		cout << "End Check Encoder :" << num << endl; 
+		return num;
 }
 
 int goForward(int distance,int facing){ //facing = 0 NS, 1 EW
@@ -156,9 +209,9 @@ int goForward(int distance,int facing){ //facing = 0 NS, 1 EW
 	backRight.run(FORWARD);
 	int startPos,stopPos;
 	if (facing == 0){
-		startPos = robotPos.curPos.NS;
+		startPos = RobotPosition.curPos.NS;
 	} else {
-		startPos = robotPos.curPos.EW;
+		startPos = RobotPosition.curPos.EW;
 	}
 	stopPos = startPos + distance;
 	//All motors max speed
@@ -170,17 +223,19 @@ int goForward(int distance,int facing){ //facing = 0 NS, 1 EW
 	cout << "Start = " << startPos << endl;
 	cout << "Stop = " << stopPos << endl;
 	if (facing == 0){
-		while(stopPos > robotPos.curPos.NS);
+		RobotPosition.curPos.NS = checkEncoder(stopPos);
+		//while(stopPos > robotPos.curPos.NS);
 			//usleep(10);
 	} else {
 		cout << "East West" <<endl;
-		while(stopPos > robotPos.curPos.EW);
+		RobotPosition.curPos.EW = checkEncoder(stopPos);
+		//while(stopPos > robotPos.curPos.EW);
 			//usleep(10);
 	}
-	halt();
+	//halt();
 	cout << "Start = " << startPos << endl;
-	cout << "Current NS = " << robotPos.curPos.NS << endl;
-	cout << "Current EW = " << robotPos.curPos.EW << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
 	cout << "Stop = " << stopPos << endl;
 	cout << "End Forward" << endl;
 	return 0;
@@ -229,28 +284,29 @@ int pivotLeft(int positions){
 	backRight.setSpeed(PIVOTSPEED);
 	
 	int startPos,stopPos;
-	startPos = robotPos.curPos.NS;
+	startPos = RobotPosition.curPos.NS;
 	stopPos = startPos + (PIVOTTICKS*positions);
 	cout << "Start = " << startPos << endl;
-	cout << "Current NS = " << robotPos.curPos.NS << endl;
-	cout << "Current EW = " << robotPos.curPos.EW << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
 	cout << "Stop = " << stopPos << endl;
-	while(stopPos > robotPos.curPos.NS){
+	checkEncoder(stopPos);
+	/*while(stopPos > robotPosition.curPos.NS){
 			usleep(10);
 			//cout << "Stop = " << stopPos << endl;
-	}
+	}*/
 	//run for appropriate amount of time
 	//usleep(PIVOTTIME*positions);
 	//stop
 	halt();
 	cout << "Start = " << startPos << endl;
-	cout << "Current NS = " << robotPos.curPos.NS << endl;
-	cout << "Current EW = " << robotPos.curPos.EW << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
 	cout << "Stop = " << stopPos << endl;
-	robotPos.curPos.NS = startPos;
+	//robotPosition.curPos.NS = startPos;
 	for (int i = 0; i < positions; i++)
 	{
-		robotPos.changeFacingCCW();
+		RobotPosition.changeFacingCCW();
 	}
 	return 0;
 }
@@ -270,38 +326,37 @@ int pivotRight(int positions){
 	
 	int startPos,stopPos;
 	cout << "Start = " << startPos << endl;
-	cout << "Current NS = " << robotPos.curPos.NS << endl;
-	cout << "Current EW = " << robotPos.curPos.EW << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
 	cout << "Stop = " << stopPos << endl;
-	if(robotPos.curPos.facing % 2 == 0){
-		startPos = robotPos.curPos.NS;
+	if(RobotPosition.curPos.facing % 2 == 0){
+		startPos = RobotPosition.curPos.NS;
 		stopPos = startPos + (PIVOTTICKS*positions);
-		while(stopPos > robotPos.curPos.NS){
+		while(stopPos > RobotPosition.curPos.NS){
 				usleep(10);
 				//cout << "Stop = " << stopPos << endl;
 		}
 	} else {
-		startPos = robotPos.curPos.EW;
+		startPos = RobotPosition.curPos.EW;
 		stopPos = startPos + (PIVOTTICKS*positions);
-		while(stopPos > robotPos.curPos.EW){
+		while(stopPos > RobotPosition.curPos.EW){
 				usleep(10);
 				//cout << "Stop = " << stopPos << endl;
 		}
 	}
 
-	
 	//run for appropriate amount of time
 	//usleep(PIVOTTIME*positions);
 	//stop
 	halt();
 	cout << "Start = " << startPos << endl;
-	cout << "Current NS = " << robotPos.curPos.NS << endl;
-	cout << "Current EW = " << robotPos.curPos.EW << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
 	cout << "Stop = " << stopPos << endl;
-	robotPos.curPos.NS = startPos;
+	RobotPosition.curPos.NS = startPos;
 	for (int i = 0; i < positions; i++)
 	{
-		robotPos.changeFacingCW();
+		RobotPosition.changeFacingCW();
 	}
 	cout << "End Pivot Right" << endl;
 	return 0;
@@ -318,7 +373,7 @@ pid_t liftClaw(){
 		pid = fork();
 		if (pid == 0){
 			usleep(LIFTTIME);
-			//haltClaw();
+			haltClaw();
 			exit(0);
 		}
 	} else {
@@ -339,7 +394,7 @@ pid_t lowerClaw(){
 		pid = fork();
 		if (pid == 0){
 			usleep(LOWERTIME);
-			//haltClaw();
+			haltClaw();
 			exit(0);
 		}
 	} else {
@@ -352,7 +407,8 @@ pid_t lowerClaw(){
 int openClaw(){
 	if(RobotPosition.getClawPos() == 1){
 		printf("Open Claw\n");
-		gpioServo(SERVOPIN,MAX_SERVO);
+		//gpioServo(GRIPPERSERVOPIN,MAX_SERVO);
+		set_servo_pulsewidth(pi,GRIPPERSERVOPIN,MAX_SERVO);
 		RobotPosition.switchClawPos();
 	}
 	return RobotPosition.getClawPos();
@@ -361,16 +417,90 @@ int openClaw(){
 int closeClaw(){
 	if(RobotPosition.getClawPos() == 0){
 		printf("Close Claw\n");
-		gpioServo(SERVOPIN,MIN_SERVO);
+		//gpioServo(GRIPPERSERVOPIN,MIN_SERVO);
+		set_servo_pulsewidth(pi,GRIPPERSERVOPIN,MIN_SERVO);
 		RobotPosition.switchClawPos();
 	}
 	return RobotPosition.getClawPos();
+}
+
+int cameraUp(){
+	if(RobotPosition.getCameraPos() == 0){
+		printf("Camera Up\n");
+		set_servo_pulsewidth(pi,CAMERASERVOPIN,CAMERAUP);
+		RobotPosition.switchCameraPos();
+	}
+	return RobotPosition.getCameraPos();
+}
+
+int cameraDown(){
+	if(RobotPosition.getCameraPos() == 1){
+		printf("Camera Down\n");
+		set_servo_pulsewidth(pi,CAMERASERVOPIN,CAMERADOWN);
+		RobotPosition.switchCameraPos();
+	}
+	return RobotPosition.getCameraPos();
+}
+
+int twistIn(){
+	if(RobotPosition.getTwistPos() == 1){
+		printf("Twist In\n");
+		set_servo_pulsewidth(pi,TWISTSERVOPIN,TWISTIN);
+		RobotPosition.switchTwistPos();
+		usleep(100000);
+	}
+	return RobotPosition.getTwistPos();
+}
+
+int twistOut(){
+	if(RobotPosition.getTwistPos() == 0){
+		printf("Twist Out\n");
+		set_servo_pulsewidth(pi,TWISTSERVOPIN,TWISTOUT);
+		RobotPosition.switchTwistPos();
+		usleep(100000);
+	}
+	return RobotPosition.getTwistPos();
 }
 
 int haltClaw(){
 	printf("HALT CLAW!\n");
 	liftMotor.setSpeed(0);
 	return 0;
+}
+
+char rotateToLoad(char load){
+	char cur = RobotPosition.getLoadZone();
+	if (load == 'D'){
+		cout << "Changing D to F" << endl;
+		load = 'F';
+	} else if (load == 'F') {
+		load = 'D';
+		cout << "Changing F to D" << endl;
+	}
+	int dist = load - cur;
+	if (dist >= 3){
+		cout << "shorter CCW" << endl;
+		dist -= 6;
+	} else if (dist <= -3){
+		cout << "shorter CW" << endl;
+		dist += 6;
+	}
+	cout << "Rotating " << dist << " spots" << endl;
+	if (dist > 0){
+		for(int i = 0; i < dist; i++){
+			system("python StepperClockwise.py");
+			cout << RobotPosition.incLoadZone() << endl;
+			cout << "Load Zone is now " << RobotPosition.getLoadZone() << endl;
+		}
+	} else if (dist < 0) {
+		for(int i = 0; i > dist; i--){
+			system("python StepperCCW.py");
+			RobotPosition.decLoadZone();
+			cout << "Load Zone is now " << RobotPosition.getLoadZone() << endl;
+		}
+	}
+	cout << "Final Load Zone is now " << RobotPosition.getLoadZone() << endl;
+	return RobotPosition.getLoadZone();
 }
 
 	

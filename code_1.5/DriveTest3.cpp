@@ -1,4 +1,5 @@
 #include "DriveTest2.h"
+#include "cameraControl.h"
 
 #define FORWARDSPEED 	 200
 #define STRAFESPEED  	 250
@@ -6,14 +7,14 @@
 #define UP		 	 FORWARD
 #define DOWN		 BACKWARD
 #define LIFTSPEED	 250
-#define LIFTTIME	 8450000
-#define LOWERTIME	 8300000
+#define LIFTTIME	 6950000
+#define LOWERTIME	 6900000
 #define PIVOTTIME	 3500000
 #define TWISTSERVOPIN	18 
 #define GRIPPERSERVOPIN 17
 #define CAMERASERVOPIN	24
 #define MIN_SERVO	 600
-#define	MAX_SERVO	 2200
+#define	MAX_SERVO	 2300
 #define CAMERAUP	 1600
 #define CAMERADOWN	 900
 #define TWISTIN 	 2400
@@ -55,6 +56,7 @@ void ctrl_c_handler(int s){
 	liftMotor.run(RELEASE);
 	halt();
 	haltClaw();
+	rebootCam(fdJevois);
 	hat.resetAll();
 	hat2.resetAll();
 	gpioTerminate();
@@ -88,7 +90,8 @@ int main(){
 	cout << "fdJevois = " << fdJevois << endl;
 	if (fdJevois < 0) {
 		cout << "ERROR!!! Can't talk to jevois!" << endl;
-		return 3;
+		//serialClose(6);
+		//return 3;
 	}
 	cout << "Jevois Open" << endl;
 	
@@ -139,26 +142,39 @@ int main(){
 	}
 	goForward(ticksX,EWFACING);
 	halt();*/
+	
+	//setCameraSettings(fdJevois);
+	/*activateOCR(fdJevois);
+	printCamInfo(fdJevois);
+	ch = readBlock(fdJevois);*/
+	closeClaw();
+	ch = 'C';
+	rotateToLoad(ch);	
 		
 	cameraUp();
-	openClaw();
 	twistOut();
-	rotateToLoad('B');
-	sleep(2);
+	openClaw();
+
+	sleep(1);
 	lowerClaw();
 	wait(NULL);
-	goForward(620, NSFACING);
+	//goForward(620, NSFACING);
 	
 	//checkEncoder(650);
 	halt();
+	
 	closeClaw();
 	liftClaw();
 	wait(NULL);
 	//sleep(16);
 	twistIn();
+	sleep(1);
+	cameraDown();
+	openClaw();
+	
 	rotateToLoad('A');
 	
-	cameraDown();
+	
 	//openClaw();
 	
 	/*sleep(2);
@@ -171,8 +187,12 @@ int main(){
 	pivotRight(1);*/
 
 	//goForward(27750*3*2000,NSFACING);
+	
+	//camStreamOff(fdJevois);
+	
+	//rebootCam(fdJevois);
 	serialClose(fdArduino);
-	serialClose(fdJevois);
+	//serialClose(fdJevois);
 	pigpio_stop(pi);
 	cout << "End of Program" << endl;
 	return 0;
@@ -242,6 +262,7 @@ int goForward(int distance,int facing){ //facing = 0 NS, 1 EW
 	cout << "End Forward" << endl;
 	return 0;
 }
+
 int strafeLeft(int distance){
 	printf("Strafe Left!\n");
 	//Motor directions for left
@@ -505,7 +526,6 @@ char rotateToLoad(char load){
 	return RobotPosition.getLoadZone();
 }
 
-	
 int halt(){
 	printf("HALT!\n");
 	//stop all motors

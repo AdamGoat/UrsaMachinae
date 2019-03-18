@@ -30,7 +30,7 @@ int main(int argc, char* argv[]){
 	
 	serialPuts(fd,"setmapping2 YUYV 320 240 30 ME TesseractOCR4\n\0");
 	
-	serialPuts(fd,"setcam autoexp 0\n\0");
+	serialPuts(fd,"setcam autoexp 1\n\0");
 	serialPuts(fd,"setcam autogain 0\n\0");
 	serialPuts(fd,"setcam autowb 0\n\0");
 	
@@ -46,14 +46,14 @@ int main(int argc, char* argv[]){
 	serialPuts(fd,"streamon\n\0");
 	
 	sleep(2);
-	serialPuts(fd,"streamoff\n\0");
+	//serialPuts(fd,"streamoff\n\0");
 	
-	serialPuts(fd,"setmapping2 YUYV 320 240 30 JeVois ObjectDetect\n\0");
+	//serialPuts(fd,"setmapping2 YUYV 320 240 30 JeVois ObjectDetect\n\0");
 	//serialPuts(fd,"setmapping 48\n\0");
-	serialPuts(fd,"info\n\0");
-	serialPuts(fd,"setpar serstyle Normal\n\0");
+	//serialPuts(fd,"info\n\0");
+	//serialPuts(fd,"setpar serstyle Normal\n\0");
 	sleep(1);
-	serialPuts(fd,"streamon\n\0");
+	//serialPuts(fd,"streamon\n\0");
 	
 	
 	

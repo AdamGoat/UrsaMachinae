@@ -17,10 +17,15 @@ char readBlock(int fd){
 	cout << "Reading Block" << endl;
 	string line = camGetLine(fd);
 	cout << "Block = " << line;
-	return (char)(line[0]); 
+	if ((line[0]) < 'A' || (line[0]) > 'F'){
+		return (char)(line[1]);
+	} else {
+		return (char)(line[0]);
+	} 
 }
 
 void rebootCam(int fd){
+	cout << "Restart Camera" << endl;
 	serialPuts(fd,"restart\n\0");
 	return;
 }
@@ -43,11 +48,13 @@ void activateOCR(int fd){
 }
 
 void activateObjectDetect(int fd){
+	cout << "Active Object Detector{" << endl;
 	serialPuts(fd,"setmapping2 YUYV 320 240 30 JeVois ObjectDetect\n\0");
 	serialPuts(fd,"setpar serstyle Normal\n\0");
 	serialPuts(fd,"setpar serout USB\n\0");
 	serialPuts(fd,"streamon\n\0");
 	printChunkCam(fd,4);
+	cout << "}" << endl;
 	return;
 }
 
@@ -69,13 +76,13 @@ void setCameraSettings(int fd){
 string camGetLine(int fd){
 	string rtn;
 	char ch = '\0';
-	cout << "line:{";
+	//cout << "line:{";
 	while(ch != '\n'){
 		ch = (char)serialGetchar(fd);
-		cout << ch;
+		//cout << ch;
 		rtn += ch;
 	}
-	cout << "}" << endl;
+	//cout << "}" << endl;
 	return rtn;
 }
 

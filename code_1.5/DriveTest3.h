@@ -34,6 +34,7 @@ struct pos{
 	int twist;
 	char loadZone;
 	char dumpZone;
+	int arduino;
 };
 
 class position{
@@ -50,6 +51,7 @@ class position{
 		curPos.twist = 0;
 		curPos.loadZone = 'A';
 		curPos.dumpZone = 'A';
+		curPos.arduino = 0;
 	}
 	pos getCurrentPos(){
 		return curPos;
@@ -146,6 +148,9 @@ class position{
 			curPos.loadZone ='F';
 		return curPos.loadZone;
 	}
+	int getArduinoValue(){
+		return curPos.arduino;
+	}
 };
 
 int goForward(int distance,int facing);
@@ -168,6 +173,9 @@ int twistOut();
 char rotateToLoad(char load);
 void switchToDump();
 char rotateToDump(char dump);
+int turnToFace(int direction);
+int goToPointNS(int Xdest, int Ydest);
+int goToPointEW(int Xdest, int Ydest);
 
 
 //position RobotPosition;

@@ -10,9 +10,11 @@
 #define LIFTTIME	 6950000
 #define LOWERTIME	 6900000
 #define PIVOTTIME	 3500000
-#define TWISTSERVOPIN	18 
-#define GRIPPERSERVOPIN 17
-#define CAMERASERVOPIN	24
+#define TWISTSERVOPIN		18 
+#define GRIPPERSERVOPIN 	17
+#define CAMERASERVOPIN		24
+#define	LIFTTOPSWITCH		20
+#define LIFTBOTTOMSWITCH	19
 #define MIN_SERVO	 600
 #define	MAX_SERVO	 2300
 #define CAMERAUP	 1600
@@ -28,7 +30,12 @@
 #define EWFACING	 1
 #define PIVOTTICKS	 1100
 #define TICKSPERFOOT 1120
+#define	DOUGETICKS	 TICKSPERFOOT/2
 
+#define BOARDEDGENORTH	8*TICKSPERFOOT
+#define BOARDEDGESOUTH	0
+#define BOARDEDGEEAST	4*TICKSPERFOOT
+#define BOARDEDGEWEST	0
 
 using namespace std;
 
@@ -46,6 +53,10 @@ position RobotPosition;
 int fdArduino;
 int fdJevois;
 int pi;
+int curBlockX;
+int curBlockY;
+int curDestX;
+int curDestY;
 
 void ctrl_c_handler(int s){
 	cout << "Caught signal " << s << endl;
@@ -63,7 +74,6 @@ void ctrl_c_handler(int s){
 	gpioTerminate();
 	exit(1);
 }
-
 
 int main(){
 	
@@ -101,6 +111,11 @@ int main(){
 	
 	pi = pigpio_start(NULL,NULL); /* Connect to Pi. */
 	
+	set_mode(pi, LIFTTOPSWITCH, PI_INPUT);
+	set_mode(pi, LIFTBOTTOMSWITCH, PI_INPUT);
+	set_pull_up_down(pi, LIFTTOPSWITCH, PI_PUD_DOWN);
+	set_pull_up_down(pi, LIFTBOTTOMSWITCH, PI_PUD_DOWN);
+	
 	double startX = 0;
 	double startY = 0;
 	char pause;
@@ -126,42 +141,42 @@ int main(){
 	cout << "Y to Continue" << endl;
 	cin >> pause;
 	
-	
-	setCameraSettings(fdJevois);
-	activateOCR(fdJevois);
+	//setCameraSettings(fdJevois);
+	//activateOCR(fdJevois);
 	printCamInfo(fdJevois);
 	//ch = readBlock(fdJevois);
 	ch = 'C';
 	cout << "Rotate to " << ch << endl;
-	closeClaw();
+	//closeClaw();
 	//rotateToLoad(ch);	
 		
 	cameraUp();
-	twistOut();
-	openClaw();
+	//twistOut();
+	//openClaw();
 
 	sleep(1);
 	//lowerClaw();
 	wait(NULL);
-	goToPointNS(endX*TICKSPERFOOT,endY*TICKSPERFOOT);
+	//goToPointNS(endX*TICKSPERFOOT,endY*TICKSPERFOOT);
+	lookForBlock(endX*TICKSPERFOOT,endY*TICKSPERFOOT);
 	
 	halt();
 	
-	camStreamOff(fdJevois);
-	activateObjectDetect(fdJevois);
+	//camStreamOff(fdJevois);
+	//activateObjectDetect(fdJevois);
 	printCamInfo(fdJevois);
 	
-	closeClaw();
-	liftClaw();
+	//closeClaw();
+	//liftClaw();
 	wait(NULL);
 	//sleep(16);
-	twistIn();
+	//twistIn();
 	sleep(1);
 	cameraDown();
-	openClaw();
+	//openClaw();
 	
-	camStreamOff(fdJevois);
-	activateOCR(fdJevois);
+	//camStreamOff(fdJevois);
+	//activateOCR(fdJevois);
 	printCamInfo(fdJevois);
 	
 	//rotateToLoad('A');
@@ -179,22 +194,53 @@ int main(){
 int checkEncoder(int stop){
 		char ch = '0';
 		char numString[10] = {'\0','\0','\0','\0','\0','\0','\0','\0','\0','\0'};
-		int num = -1;
+		int num;
 		int n = 0;
 		cout << "Start Check Encoder: " << stop << endl; 
-		while(num < stop){
-			while(ch != '\n'){
-				ch = (char)serialGetchar(fdArduino);
-				numString[n] = ch;
-				n++;
-				//cout << ch;
+		if(RobotPosition.curPos.arduino < stop){
+			num = -100000;
+			cout << "arduino < stop" << endl;
+			while(num < stop){
+				while(ch != '\n'){
+					ch = (char)serialGetchar(fdArduino);
+					numString[n] = ch;
+					n++;
+					//cout << ch;
+				}
+				numString[n] = '\0';
+				n--;
+				num = atoi(numString);
+				cout << num << endl;
+				n = 0;
+				ch = '0';
+				if(serial_data_available(pi,fdJevois) > 0 && jevoisMode == JEVOISMODEOBJ){
+					cout << camGetLine(fdJevois) << endl;
+					evasiveManeuvers(curDestX,curDestY);				
+				}
+					
 			}
-			numString[n] = '\0';
-			n--;
-			num = atoi(numString);
-			//cout << num << endl;
-			n = 0;
-			ch = '0';
+               }else{
+			num = 100000;
+			cout << "arduino > stop" << endl;
+			while(num > stop){
+				while(ch != '\n'){
+					ch = (char)serialGetchar(fdArduino);
+					numString[n] = ch;
+					n++;
+					//cout << ch;
+				}
+				numString[n] = '\0';
+				n--;
+				num = atoi(numString);
+				cout << num << endl;
+				n = 0;
+				ch = '0';
+				if(serial_data_available(pi,fdJevois) > 0 && jevoisMode == JEVOISMODEOBJ){
+					cout << camGetLine(fdJevois) << endl;
+					evasiveManeuvers(curDestX,curDestY);				
+				}
+					
+			}
 		}
 		RobotPosition.curPos.arduino = num;
 		cout << "End Check Encoder :" << num << endl; 
@@ -224,8 +270,8 @@ int goForward(int distance,int facing){ //facing = 0 NS, 1 EW
 	}
 	
 	startPos += RobotPosition.curPos.arduino;
-	
-	stopPos = startPos + distance;
+	//distance = abs(distance);
+	stopPos = startPos + abs(distance);
 	
 	//All motors max speed
 	frontLeft.setSpeed(FORWARDSPEED);
@@ -240,10 +286,10 @@ int goForward(int distance,int facing){ //facing = 0 NS, 1 EW
 	
 	if (facing == 0){
 		cout << "North South" << endl;
-		RobotPosition.curPos.NS += checkEncoder(stopPos) - startPos;
+		RobotPosition.curPos.NS += (distance/abs(distance))* checkEncoder(stopPos) - startPos;
 	} else {
 		cout << "East West" <<endl;
-		RobotPosition.curPos.EW += checkEncoder(stopPos) - startPos;
+		RobotPosition.curPos.EW += (distance/abs(distance))* checkEncoder(stopPos) - startPos;
 	}
 	//halt();
 	cout << "Start = " << startPos << endl;
@@ -254,6 +300,41 @@ int goForward(int distance,int facing){ //facing = 0 NS, 1 EW
 	return 0;
 }
 
+void strafe(int distance){
+	cout << "Strafing" << endl;
+	switch (RobotPosition.getFacing()){
+		case 0:
+			if(distance <= 0)
+				strafeLeft(distance);
+			else
+				strafeRight(distance);
+			break;
+		case 1:
+			if(distance <= 0)
+				strafeRight(distance);
+			else
+				strafeLeft(distance);
+			break;
+		case 2:
+			if(distance <= 0)
+				strafeRight(distance);
+			else
+				strafeLeft(distance);
+			break;
+		case 3:
+			if(distance <= 0)
+				strafeLeft(distance);
+			else
+				strafeRight(distance);
+			break;
+		default:
+			cout << "ERROR: Invalid Facing!" << endl;
+			return;
+		}
+	cout << "End Strafing" << endl;
+	return;
+}
+
 int strafeLeft(int distance){
 	printf("Strafe Left!\n");
 	//Motor directions for left
@@ -261,11 +342,43 @@ int strafeLeft(int distance){
 	frontRight.run(FORWARD);
 	backLeft.run(FORWARD);
 	backRight.run(BACKWARD);
+	
+	int startPos,stopPos;
+	if (RobotPosition.getFacing()%2 == 0){ //Fliped for strafing
+		cout << "Moving NS" << endl;
+		startPos = RobotPosition.curPos.NS;
+	} else {
+		cout << "Moving EW" << endl;
+		startPos = RobotPosition.curPos.EW;
+	}
+	startPos += RobotPosition.curPos.arduino;
+	
+	stopPos = startPos + (distance);
+	cout << "Start = " << startPos << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
+	cout << "Stop = " << stopPos << endl;
+	
 	//Go at strafing speed
 	frontLeft.setSpeed(STRAFESPEED);
 	frontRight.setSpeed(STRAFESPEED);
 	backLeft.setSpeed(STRAFESPEED);
 	backRight.setSpeed(STRAFESPEED);
+	
+	if (RobotPosition.getFacing()%2 == 0){
+		cout << "North South" << endl;
+		RobotPosition.curPos.NS += checkEncoder(stopPos) - startPos;
+	} else {
+		cout << "East West" <<endl;
+		RobotPosition.curPos.EW += checkEncoder(stopPos) - startPos;
+	}
+	
+	cout << "Start = " << startPos << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
+	cout << "Stop = " << stopPos << endl;
+	cout << "End Forward" << endl;
+	
 	return 0;
 }
 
@@ -276,11 +389,43 @@ int strafeRight(int distance){
 	frontRight.run(BACKWARD);
 	backLeft.run(BACKWARD);
 	backRight.run(FORWARD);
+	
+	int startPos,stopPos;
+	if (RobotPosition.getFacing()%2 == 0){ //Fliped for strafing
+		cout << "Moving NS" << endl;
+		startPos = RobotPosition.curPos.NS;
+	} else {
+		cout << "Moving EW" << endl;
+		startPos = RobotPosition.curPos.EW;
+	}
+	startPos += RobotPosition.curPos.arduino;
+	
+	stopPos = startPos + (distance);
+	cout << "Start = " << startPos << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
+	cout << "Stop = " << stopPos << endl;
+	
 	//Go at strafing speed
 	frontLeft.setSpeed(STRAFESPEED);
 	frontRight.setSpeed(STRAFESPEED);
 	backLeft.setSpeed(STRAFESPEED);
 	backRight.setSpeed(STRAFESPEED);
+	
+	if (RobotPosition.getFacing()%2 == 0){
+		cout << "North South" << endl;
+		RobotPosition.curPos.NS += checkEncoder(stopPos) - startPos;
+	} else {
+		cout << "East West" <<endl;
+		RobotPosition.curPos.EW += checkEncoder(stopPos) - startPos;
+	}
+	
+	cout << "Start = " << startPos << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
+	cout << "Stop = " << stopPos << endl;
+	cout << "End Forward" << endl;
+	
 	return 0;
 }
 
@@ -298,8 +443,9 @@ int pivotLeft(int positions){
 	backRight.setSpeed(PIVOTSPEED);
 	
 	int startPos,stopPos;
-	startPos = RobotPosition.curPos.NS;
-	stopPos = startPos + (PIVOTTICKS*positions);
+	//startPos = RobotPosition.curPos.NS;
+	startPos = RobotPosition.curPos.arduino;
+	stopPos = startPos - (PIVOTTICKS*positions);
 	cout << "Start = " << startPos << endl;
 	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
 	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
@@ -364,10 +510,37 @@ int pivotRight(int positions){
 	return 0;
 }
 
+void evasiveManeuvers(int Xdest, int Ydest){
+	cout << "Execute Evasive Maneuvers!" << endl;
+	
+	halt();
+	goForward(TICKSPERFOOT/2,RobotPosition.getFacing()%2);
+	
+	if (RobotPosition.getFacing() % 2 == 0){
+		if(RobotPosition.curPos.EW + DOUGETICKS < BOARDEDGEEAST)
+			strafe(DOUGETICKS);
+		else
+			strafe(-DOUGETICKS);
+	} else {
+		if(RobotPosition.curPos.NS + DOUGETICKS < BOARDEDGENORTH)
+			strafe(DOUGETICKS);
+		else
+			strafe(-DOUGETICKS);
+	}
+	
+	goForward(TICKSPERFOOT*1.5,RobotPosition.getFacing()%2);
+	
+	cout << "Begin new path" << endl;
+	lookForBlock(curBlockX,curBlockY);
+	cout << "End evasive maneuvers" << endl;
+	
+		
+	return;
+}
+
 // Dillon 3/18
-int turnToFace(int direction)
-{
-	// Check that direction value is {0,1,2,3}
+int turnToFace(int direction){
+	// Check that direction value is {0,1,2,3} N E S W
 	if(direction>3 || direction<0)
 	{
 		cout << "Invalid direction";
@@ -387,8 +560,9 @@ int turnToFace(int direction)
 }
 
 // Dillon 3/18 and 3/19 and probably other dates too
-int goToPointNS(int Xdest, int Ydest)
-{
+int goToPointNS(int Xdest, int Ydest){
+	curDestX = Xdest;
+	curDestY = Ydest;
 	// NS
 	if(Ydest != RobotPosition.curPos.NS)
 	{
@@ -404,9 +578,10 @@ int goToPointNS(int Xdest, int Ydest)
 	return 0;
 }
 
-int goToPointEW(int Xdest, int Ydest)
-{
-		// EW
+int goToPointEW(int Xdest, int Ydest){
+	curDestX = Xdest;
+	curDestY = Ydest;
+	// EW
 	if(Xdest != RobotPosition.curPos.EW)
 	{
 		turnToFace(1+2*(Xdest<RobotPosition.curPos.EW));
@@ -422,8 +597,7 @@ int goToPointEW(int Xdest, int Ydest)
 	return 0;
 }
 
-int boardMothership(char letter)
-{
+int boardMothership(char letter){
 	int stop;
 	if(letter == 'C')
 	{
@@ -522,8 +696,7 @@ int boardMothership(char letter)
 }
 
 // Dillon 3/19
-int lookForBlock(int blockX, int blockY)
-{
+int lookForBlock(int blockX, int blockY){
 	int Ydisp = blockY - RobotPosition.curPos.NS;
 	int Xdisp = blockX - RobotPosition.curPos.EW;
 	switch(RobotPosition.curPos.facing)
@@ -532,41 +705,41 @@ int lookForBlock(int blockX, int blockY)
 		case 0: // block is north
 				if(Xdisp>0 && Ydisp>0)
 				{
-					goToPointNS(blockX-1, blockY);
+					goToPointNS(blockX-1*TICKSPERFOOT, blockY);
 					turnToFace(1);
 				}
 				else if(Xdisp<0 && Ydisp>0)
 				{
-					goToPointNS(blockX+1, blockY);
+					goToPointNS(blockX+1*TICKSPERFOOT, blockY);
 					turnToFace(3);
 				}
 				else if(Xdisp==0 && Ydisp>0)
 				{
-					goToPointNS(blockX, blockY-1);
+					goToPointNS(blockX, blockY-1*TICKSPERFOOT);
 				}
 				// block is south
 				else if(Xdisp>0 && Ydisp<0)
 				{
-					goToPointEW(blockX, blockY+1);
+					goToPointEW(blockX, blockY+1*TICKSPERFOOT);
 					turnToFace(2);
 				}
 				else if(Xdisp<0 && Ydisp<0)
 				{
-					goToPointEW(blockX, blockY+1);
+					goToPointEW(blockX, blockY+1*TICKSPERFOOT);
 					turnToFace(2);
 				}
 				else if(Xdisp==0 && Ydisp<0)
 				{
-					goToPointEW(blockX, blockY+1);
+					goToPointEW(blockX, blockY+1*TICKSPERFOOT);
 				}
 				// block is directly east or west
 				else if(Xdisp>0 && Ydisp==0)
 				{
-					goToPointEW(blockX-1, blockY);
+					goToPointEW(blockX-1*TICKSPERFOOT, blockY);
 				}	
 				else if(Xdisp<0 && Ydisp==0)
 				{
-					goToPointEW(blockX+1, blockY);
+					goToPointEW(blockX+1*TICKSPERFOOT, blockY);
 				}	
 				else
 					cout << "I'm facing North, but I don't know where to go" << endl;
@@ -576,41 +749,41 @@ int lookForBlock(int blockX, int blockY)
 		case 1: // block is north
 				if(Xdisp>0 && Ydisp>0)
 				{
-					goToPointEW(blockX, blockY-1);
+					goToPointEW(blockX, blockY-1*TICKSPERFOOT);
 					turnToFace(0);
 				}
 				else if(Xdisp<0 && Ydisp>0)
 				{
-					goToPointNS(blockX, blockY+1);
+					goToPointNS(blockX, blockY+1*TICKSPERFOOT);
 					turnToFace(3);
 				}
 				else if(Xdisp==0 && Ydisp>0)
 				{
-					goToPointNS(blockX, blockY-1);
+					goToPointNS(blockX, blockY-1*TICKSPERFOOT);
 				}
 				// block is south
 				else if(Xdisp>0 && Ydisp<0)
 				{
-					goToPointEW(blockX, blockY+1);
+					goToPointEW(blockX, blockY+1*TICKSPERFOOT);
 					turnToFace(2);
 				}
 				else if(Xdisp<0 && Ydisp<0)
 				{
-					goToPointNS(blockX+1, blockY);
+					goToPointNS(blockX+1*TICKSPERFOOT, blockY);
 					turnToFace(3);
 				}
 				else if(Xdisp==0 && Ydisp<0)
 				{
-					goToPointEW(blockX, blockY+1);
+					goToPointEW(blockX, blockY+1*TICKSPERFOOT);
 				}
 				// block is directly east or west
 				else if(Xdisp>0 && Ydisp==0)
 				{
-					goToPointEW(blockX-1, blockY);
+					goToPointEW(blockX-1*TICKSPERFOOT, blockY);
 				}	
 				else if(Xdisp<0 && Ydisp==0)
 				{
-					goToPointEW(blockX+1, blockY);
+					goToPointEW(blockX+1*TICKSPERFOOT, blockY);
 				}	
 				else
 					cout << "I'm facing East, but I don't know where to go" << endl;
@@ -620,41 +793,41 @@ int lookForBlock(int blockX, int blockY)
 		case 2: // block is north
 				if(Xdisp>0 && Ydisp>0)
 				{
-					goToPointEW(blockX, blockY-1);
+					goToPointEW(blockX, blockY-1*TICKSPERFOOT);
 					turnToFace(0);
 				}
 				else if(Xdisp<0 && Ydisp>0)
 				{
-					goToPointNS(blockX, blockY-1);
+					goToPointNS(blockX, blockY-1*TICKSPERFOOT);
 					turnToFace(0);
 				}
 				else if(Xdisp==0 && Ydisp>0)
 				{
-					goToPointNS(blockX, blockY-1);
+					goToPointNS(blockX, blockY-1*TICKSPERFOOT);
 				}
 				// block is south
 				else if(Xdisp>0 && Ydisp<0)
 				{
-					goToPointNS(blockX-1, blockY);
+					goToPointNS(blockX-1*TICKSPERFOOT, blockY);
 					turnToFace(1);
 				}
 				else if(Xdisp<0 && Ydisp<0)
 				{
-					goToPointNS(blockX+1, blockY);
+					goToPointNS(blockX+1*TICKSPERFOOT, blockY);
 					turnToFace(3);
 				}
 				else if(Xdisp==0 && Ydisp<0)
 				{
-					goToPointEW(blockX, blockY+1);
+					goToPointEW(blockX, blockY+1*TICKSPERFOOT);
 				}
 				// block is directly east or west
 				else if(Xdisp>0 && Ydisp==0)
 				{
-					goToPointEW(blockX-1, blockY);
+					goToPointEW(blockX-1*TICKSPERFOOT, blockY);
 				}	
 				else if(Xdisp<0 && Ydisp==0)
 				{
-					goToPointEW(blockX+1, blockY);
+					goToPointEW(blockX+1*TICKSPERFOOT, blockY);
 				}	
 				else
 					cout << "I'm facing South, but I don't know where to go" << endl;
@@ -664,41 +837,41 @@ int lookForBlock(int blockX, int blockY)
 		case 3: // block is north
 				if(Xdisp>0 && Ydisp>0)
 				{
-					goToPointEW(blockX-1, blockY);
+					goToPointEW(blockX-1*TICKSPERFOOT, blockY);
 					turnToFace(1);
 				}
 				else if(Xdisp<0 && Ydisp>0)
 				{
-					goToPointEW(blockX, blockY-1);
+					goToPointEW(blockX, blockY-1*TICKSPERFOOT);
 					turnToFace(0);
 				}
 				else if(Xdisp==0 && Ydisp>0)
 				{
-					goToPointNS(blockX, blockY-1);
+					goToPointNS(blockX, blockY-1*TICKSPERFOOT);
 				}
 				// block is south
 				else if(Xdisp>0 && Ydisp<0)
 				{
-					goToPointNS(blockX-1, blockY);
+					goToPointNS(blockX-1*TICKSPERFOOT, blockY);
 					turnToFace(1);
 				}
 				else if(Xdisp<0 && Ydisp<0)
 				{
-					goToPointEW(blockX, blockY+1);
+					goToPointEW(blockX, blockY+1*TICKSPERFOOT);
 					turnToFace(2);
 				}
 				else if(Xdisp==0 && Ydisp<0)
 				{
-					goToPointEW(blockX, blockY+1);
+					goToPointEW(blockX, blockY+1*TICKSPERFOOT);
 				}
 				// block is directly east or west
 				else if(Xdisp>0 && Ydisp==0)
 				{
-					goToPointEW(blockX-1, blockY);
+					goToPointEW(blockX-1*TICKSPERFOOT, blockY);
 				}	
 				else if(Xdisp<0 && Ydisp==0)
 				{
-					goToPointEW(blockX+1, blockY);
+					goToPointEW(blockX+1*TICKSPERFOOT, blockY);
 				}	
 				else
 					cout << "I'm facing West, but I don't know where to go" << endl;
@@ -707,46 +880,82 @@ int lookForBlock(int blockX, int blockY)
 	return 0;
 }
 
-pid_t liftClaw(){
-	pid_t pid;
+// 3/20
+pair<double,double> chooseDest(pair<double,double> coordinates[]){
+	double goDist=100;
+	double dist;
+	int index=0;
+	for(int i=0;i<sizeof(coordinates)/sizeof(coordinates[0]);i++)
+	{
+		dist=sqrt(pow((coordinates[i].first*TICKSPERFOOT-RobotPosition.curPos.EW),2) + pow((coordinates[i].second*TICKSPERFOOT-RobotPosition.curPos.NS),2));
+		if(dist<goDist)
+		{
+			goDist = dist;
+			index = i;
+		}
+	}
+	pair<double,double> sendCoordinates = coordinates[index];
+	curBlockX = coordinates[index].first;
+	curBlockY = coordinates[index].second;
+	coordinates[index].first = 100;
+	coordinates[index].second = 100;
+	return sendCoordinates;
+}
+
+void liftClaw(){
+//	pid_t pid;
 	printf("Lift Claw!\n");
 	if(RobotPosition.getLiftPos() == 0){
 		printf("Lifting\n");
 		liftMotor.run(UP);
 		liftMotor.setSpeed(LIFTSPEED);
 		RobotPosition.switchLiftPos();
-		pid = fork();
+/*		pid = fork();
 		if (pid == 0){
 			usleep(LIFTTIME);
 			haltClaw();
 			exit(0);
 		}
+*/
+		while(!gpio_read(pi, LIFTTOPSWITCH))
+		{
+			usleep(1000);
+		}
+		haltClaw();
 	} else {
 		printf("Claw already up!\n");
-		return 1;
-	}		
-	return pid;
+		return;
+	}	
+	return;	
+//	return pid;
 }
 
-pid_t lowerClaw(){
-	pid_t pid;
+void lowerClaw(){
+//	pid_t pid;
 	printf("Lower Claw\n");
 	if(RobotPosition.getLiftPos() == 1){
 		printf("Lowering\n");
 		liftMotor.run(DOWN);
 		liftMotor.setSpeed(LIFTSPEED);
 		RobotPosition.switchLiftPos();
-		pid = fork();
+/*		pid = fork();
 		if (pid == 0){
 			usleep(LOWERTIME);
 			haltClaw();
 			exit(0);
 		}
+*/
+		while(!gpio_read(pi, LIFTBOTTOMSWITCH))
+		{
+			usleep(1000);
+		}
+		haltClaw();
 	} else {
 		printf("Claw already down!\n");
-		return 1;
+		return;
 	}
-	return pid;
+	return;
+//	return pid;
 }
 
 int openClaw(){

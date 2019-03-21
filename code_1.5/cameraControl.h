@@ -1,6 +1,13 @@
 #include <wiringSerial.h>
 #include <string>
 
+#define JEVOISMODEOFF	0
+#define JEVOISMODEOCR	1
+#define	JEVOISMODEBLK	2
+#define JEVOISMODEOBJ	3
+
+int jevoisMode;
+
 using namespace std;
 
 void activateOCR(int fd);
@@ -31,12 +38,14 @@ void rebootCam(int fd){
 }
 
 void camStreamOff(int fd){
+	jevoisMode = JEVOISMODEOFF;
 	serialPuts(fd,"streamoff\n\0");
 	cout << camGetLine(fd);
 	return;
 }
 
 void activateOCR(int fd){
+	jevoisMode = JEVOISMODEOCR;
 	cout << "Activate Camera Tesseract4{" << endl;
 	serialPuts(fd,"setmapping2 YUYV 320 240 30 ME TesseractOCR4\n\0");
 	serialPuts(fd,"setpar serout USB\n\0");
@@ -48,12 +57,24 @@ void activateOCR(int fd){
 }
 
 void activateObjectDetect(int fd){
+	jevoisMode = JEVOISMODEOBJ;
 	cout << "Active Object Detector{" << endl;
 	serialPuts(fd,"setmapping2 YUYV 320 240 30 JeVois ObjectDetect\n\0");
 	serialPuts(fd,"setpar serstyle Normal\n\0");
 	serialPuts(fd,"setpar serout USB\n\0");
 	serialPuts(fd,"streamon\n\0");
 	printChunkCam(fd,4);
+	cout << "}" << endl;
+	return;
+}
+
+void activateBlockDetect(int fd){
+	jevoisMode = JEVOISMODEBLK;
+	cout << "Active White Detector{" << endl;
+	serialPuts(fd,"setmapping2 YUYV 320 240 30 ME WhiteTracker\n\0");
+	serialPuts(fd,"setpar serout USB\n\0");
+	serialPuts(fd,"streamon\n\0");
+	printChunkCam(fd,3);
 	cout << "}" << endl;
 	return;
 }

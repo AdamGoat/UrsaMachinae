@@ -11,13 +11,15 @@
 #define ARDUINOPIN	 17
 #define SERVOPIN	 18 		//Dosn't change servo pin, just for record keeping
 #define MIN_SERVO	 500
-#define	MAX_SERVO	 2500
+#define	MAX_SERVO	 2300
 
 using namespace std;
 
 Adafruit_MotorHAT hat2(0x60,1600,-1,-1);
 
 Adafruit_DCMotor& liftMotor  = hat2.getDC(1);
+
+int pi;
 
 void ctrl_c_handler(int s){
 	cout << "Caught signal " << s << endl;
@@ -30,8 +32,8 @@ void ctrl_c_handler(int s){
 
 int main(int argc, char* argv[]){
 	signal(2, ctrl_c_handler);
-	if (gpioInitialise() < 0) return -1;
-	
+	//if (gpioInitialise() < 0) return -1;
+	pi = pigpio_start(NULL,NULL);
 	cout << "Hello World" << endl;
 	cout << "Opening" << endl;
 	if(RobotPosition.getClawPos() == 0)
@@ -43,7 +45,7 @@ int main(int argc, char* argv[]){
 	return 0;
 }
 
-pid_t liftClaw(){
+/*pid_t liftClaw(){
 	pid_t pid;
 	printf("Lift Claw!\n");
 	if(RobotPosition.getLiftPos() == 0){
@@ -62,9 +64,9 @@ pid_t liftClaw(){
 		return 1;
 	}		
 	return pid;
-}
+}*/
 
-pid_t lowerClaw(){
+/*pid_t lowerClaw(){
 	pid_t pid;
 	printf("Lower Claw\n");
 	if(RobotPosition.getLiftPos() == 1){
@@ -83,25 +85,26 @@ pid_t lowerClaw(){
 		return 1;
 	}
 	return pid;
-}
+}*/
 
 int openClaw(){
 	if(RobotPosition.getClawPos() == 1){
 		printf("Open Claw\n");
-		gpioServo(SERVOPIN,MAX_SERVO);
+//gpioServo(SERVOPIN,MAX_SERVO);
+		set_servo_pulsewidth(pi,17,MAX_SERVO);
 		RobotPosition.switchClawPos();
 	}
 	return RobotPosition.getClawPos();
 }
 
-int closeClaw(){
+/*int closeClaw(){
 	if(RobotPosition.getClawPos() == 0){
 		printf("Close Claw\n");
 		gpioServo(SERVOPIN,MIN_SERVO);
 		RobotPosition.switchClawPos();
 	}
 	return RobotPosition.getClawPos();
-}
+}*/
 
 int haltClaw(){
 	printf("HALT CLAW!\n");

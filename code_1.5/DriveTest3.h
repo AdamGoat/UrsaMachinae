@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string>
+#include <math.h>
 
 #include "/home/pi/Documents/UrsaMachinae/code_1.5/Adafruit_MotorHAT.h"
 #include <pigpiod_if2.h>
@@ -51,7 +52,7 @@ class position{
 		curPos.twist = 0;
 		curPos.loadZone = 'A';
 		curPos.dumpZone = 'A';
-		curPos.arduino = 0;
+		curPos.arduino = 000;
 	}
 	pos getCurrentPos(){
 		return curPos;
@@ -77,6 +78,9 @@ class position{
 		if (curPos.facing < 0)
 			curPos.facing = 3;
 		return curPos;
+	}
+	int getFacing(){
+		return curPos.facing;
 	}
 	int getLiftPos(){
 		// 0 = down
@@ -158,8 +162,8 @@ int strafeLeft(int distance);
 int strafeRight(int distance);
 int pivotLeft(int positions);
 int pivotRight(int positions);
-pid_t liftClaw();
-pid_t lowerClaw();
+void liftClaw();
+void lowerClaw();
 int openClaw();
 int closeClaw();
 int haltClaw();
@@ -176,6 +180,10 @@ char rotateToDump(char dump);
 int turnToFace(int direction);
 int goToPointNS(int Xdest, int Ydest);
 int goToPointEW(int Xdest, int Ydest);
+pair<double,double> chooseDest(pair<double,double> coordinates[]);
+void evasiveManeuvers(int Xdest, int Ydest);
+void strafe(int distance);
+int lookForBlock(int blockX, int blockY);
 
 
 //position RobotPosition;

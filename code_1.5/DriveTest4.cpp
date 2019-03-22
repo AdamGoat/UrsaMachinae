@@ -1,41 +1,46 @@
-#include "DriveTest3.h"
+#include "DriveTest4.h"
 #include "cameraControl.h"
 
-#define FORWARDSPEED 	 250
-#define STRAFESPEED  	 250
-#define PIVOTSPEED		 150
-#define UP		 	 FORWARD
-#define DOWN		 BACKWARD
-#define LIFTSPEED	 250
-#define LIFTTIME	 6950000
-#define LOWERTIME	 6900000
-#define PIVOTTIME	 3500000
+#define FORWARDSPEED 	 	250
+#define STRAFESPEED  	 	250
+#define PIVOTSPEED		 	150
+#define UP		 	 		FORWARD
+#define DOWN		 		BACKWARD
+#define LIFTSPEED	 		250
+#define LIFTTIME	 		6950000
+#define LOWERTIME	 		6900000
+#define PIVOTTIME	 		3500000
 #define TWISTSERVOPIN		18 
 #define GRIPPERSERVOPIN 	17
 #define CAMERASERVOPIN		24
 #define	LIFTTOPSWITCH		20
 #define LIFTBOTTOMSWITCH	19
-#define MIN_SERVO	 600
-#define	MAX_SERVO	 2300
-#define CAMERAUP	 1600
-#define CAMERADOWN	 900
-#define TWISTIN 	 2400
-#define TWISTOUT 	 500
-#define FORWARDTIME1 2600000
-#define FORWARDTIME2 870000
-#define FORWARDTIME3 6600000
-#define ENCODERPINA	 5
-#define ENCODERPINB  12
-#define NSFACING	 0
-#define EWFACING	 1
-#define PIVOTTICKS	 1100
-#define TICKSPERFOOT 1120
-#define	DOUGETICKS	 TICKSPERFOOT/2
+#define MIN_SERVO	 		600
+#define	MAX_SERVO	 		2300
+#define CAMERAUP	 		1600
+#define CAMERADOWN	 		900
+#define TWISTIN 	 		2400
+#define TWISTOUT 	 		500
+#define NSFACING	 		0
+#define EWFACING	 		1
+#define PIVOTTICKS	 		1100
+#define TICKSPERFOOT 		1120
+#define	DOUGETICKS	 		TICKSPERFOOT/2
 
-#define BOARDEDGENORTH	8*TICKSPERFOOT
-#define BOARDEDGESOUTH	0
-#define BOARDEDGEEAST	4*TICKSPERFOOT
-#define BOARDEDGEWEST	0
+#define LEFTPUNCHERPIN		27
+#define RIGHTPUNCHERPIN		22
+#define LEFTPUNCHERUP		600
+#define LEFTPUNCHERDOWN		2300
+#define RIGHTPUNCHERUP		2300
+#define RIGHTPUNCHERDOWN	600
+
+#define ARDUINORESETPIN		4
+
+//TODO Define edges to [-4,3]
+#define BOARDEDGENORTH		8*TICKSPERFOOT
+#define BOARDEDGESOUTH		0
+#define BOARDEDGEEAST		8*TICKSPERFOOT 
+#define BOARDEDGEWEST		0
 
 using namespace std;
 
@@ -58,6 +63,7 @@ int curBlockY;
 int curDestX;
 int curDestY;
 int numBlocks;
+bool turning;
 
 void ctrl_c_handler(int s){
 	cout << "Caught signal " << s << endl;
@@ -70,9 +76,15 @@ void ctrl_c_handler(int s){
 	haltClaw();
 	camStreamOff(fdJevois);
 	rebootCam(fdJevois);
+	serialClose(fdArduino);
+	serialClose(fdJevois);
 	hat.resetAll();
 	hat2.resetAll();
-	gpioTerminate();
+	//gpioTerminate();
+	gpio_write(pi, ARDUINORESETPIN, 0);
+	usleep(5);
+	gpio_write(pi, ARDUINORESETPIN, 1);
+	pigpio_stop(pi);
 	exit(1);
 }
 
@@ -80,42 +92,9 @@ int main(){
 	
 	signal(2, ctrl_c_handler);
 	
-	//if (gpioInitialise() < 0) return -1;
-	
-	//int fdArduino = -1; //DO NOT USE!!!!! -Adam & Morganmake
-	cout << "Open Arduino" << endl;
-	fdArduino = serialOpen("/dev/ttyACM0", 57600);
-	cout << "fdArduino = " << fdArduino << endl;
-	if (fdArduino < 0) {
-		cout << "ERROR!!! Can't talk to Arduino!" << endl;
-		return 2;
-	}
-	char ch;
-	while(ch != '\n'){
-		ch = (char)serialGetchar(fdArduino);
-		cout << ch;
-	}
-	cout << "Arduino Open" << endl;
-	
-	cout << "Open Jevois" << endl;
-	fdJevois = serialOpen("/dev/ttyACM1", 115200);
-	//fdJevois = serialOpen("/dev/ttyACM0", 115200);
-	//fdJevois = -1;
-	
-	cout << "fdJevois = " << fdJevois << endl;
-	if (fdJevois < 0) {
-		cout << "ERROR!!! Can't talk to jevois!" << endl;
-		//serialClose(6);
-		return 3;
-	}
-	cout << "Jevois Open" << endl;
-	
-	pi = pigpio_start(NULL,NULL); /* Connect to Pi. */
-	
-	set_mode(pi, LIFTTOPSWITCH, PI_INPUT);
-	set_mode(pi, LIFTBOTTOMSWITCH, PI_INPUT);
-	set_pull_up_down(pi, LIFTTOPSWITCH, PI_PUD_DOWN);
-	set_pull_up_down(pi, LIFTBOTTOMSWITCH, PI_PUD_DOWN);
+	initilizePigpiod();	
+	initilizeArduinoSerial();
+	initilizeJevoisSerial();	
 	
 	double startX = 0;
 	double startY = 0;
@@ -123,7 +102,6 @@ int main(){
 	
 	RobotPosition.curPos.NS = startY*TICKSPERFOOT;
 	RobotPosition.curPos.EW	= startX*TICKSPERFOOT;
-
 
 	pair<double,double> locals[3];
 	pair<double,double> blk1;
@@ -143,83 +121,40 @@ int main(){
 
 	numBlocks = 3;
 	
-	for (int i = 0; i < numBlocks -0; i++){
+	liftClaw();
+	twistIn();
+
+	for (int i = 0; i < numBlocks-0; i++){
+		activateObjectDetect(fdJevois);
 		pair<double,double> result;
 		result = chooseDest(locals);
 		cout << "Next block @ (" << curBlockX << "," << curBlockY << ")" << endl;
 		lookForBlock(curBlockX*TICKSPERFOOT,curBlockY*TICKSPERFOOT);
 		halt();
-		cout << "Block " << i << "found" <<endl;
-		sleep(1);
+		cout << "Block " << i << " found" <<endl;
+		char letter = getBlock();
+		//cout << "Block is " << letter << endl;
+		rotateToLoad(letter);
+		openClaw();
+		sleep(2);
 	}
 	cout << "ALL BLOCKS FOUND!" << endl;
 	halt();
-
-	/*double endX,endY;
 	
-	cout << "X: ";
-	cin >> endX;
-	cout << "Y: ";
-	cin >> endY;
-	cout << "start(" << startX << "," << startY << ")-";
-	cout << "end(" << endX << "," << endY << ")" << endl;
-	
-	int ticksX = (endX - startX) * TICKSPERFOOT;
-	int ticksY = (endY - startY) * TICKSPERFOOT;
-	
-	cout << "ticksX = " << ticksX << endl;
-	cout << "ticksY = " << ticksY << endl;*/
-	
-	//cout << "Y to Continue" << endl;
-	//cin >> pause;
-	
-	//setCameraSettings(fdJevois);
-	//activateOCR(fdJevois);
-	printCamInfo(fdJevois);
-	//ch = readBlock(fdJevois);
-	ch = 'C';
-	cout << "Rotate to " << ch << endl;
-	//closeClaw();
-	//rotateToLoad(ch);	
+	cout << "Dump Blocks" << endl;
+	rotateToLoad('E');
+	system("python StepperTwelfthCCW.py");
+	for (int i = 0; i < 3; i++){
+		punchersUp();
+		sleep(1);
+		punchersDown();
+		usleep(500000);
+		system("python StepperCCW.py");
+	}
 		
-	cameraUp();
-	//twistOut();
-	//openClaw();
+	
 
-	sleep(1);
-	//lowerClaw();
-	//wait(NULL);
-	//goToPointNS(endX*TICKSPERFOOT,endY*TICKSPERFOOT);
-	//lookForBlock(endX*TICKSPERFOOT,endY*TICKSPERFOOT);
-	
-	halt();
-	
-	//camStreamOff(fdJevois);
-	//activateObjectDetect(fdJevois);
-	printCamInfo(fdJevois);
-	
-	//closeClaw();
-	//liftClaw();
-	//wait(NULL);
-	//sleep(16);
-	//twistIn();
-	sleep(1);
-	cameraDown();
-	//openClaw();
-	
-	//camStreamOff(fdJevois);
-	//activateOCR(fdJevois);
-	printCamInfo(fdJevois);
-	
-	//rotateToLoad('A');
-	
-	//camStreamOff(fdJevois);
-	
-	rebootCam(fdJevois);
-	serialClose(fdArduino);
-	serialClose(fdJevois);
-	pigpio_stop(pi);
-	cout << "End of Program" << endl;
+	endProgram();
 	return 0;
 }
 
@@ -245,7 +180,8 @@ int checkEncoder(int stop){
 				cout << num << endl;
 				n = 0;
 				ch = '0';
-				if(serial_data_available(pi,fdJevois) > 0 && jevoisMode == JEVOISMODEOBJ){
+				//TODO disable for pivot
+				if(serial_data_available(pi,fdJevois) > 0 && jevoisMode == JEVOISMODEOBJ && !turning){
 					cout << camGetLine(fdJevois) << endl;
 					evasiveManeuvers(curDestX,curDestY);				
 				}
@@ -267,7 +203,8 @@ int checkEncoder(int stop){
 				//cout << num << endl;
 				n = 0;
 				ch = '0';
-				if(serial_data_available(pi,fdJevois) > 0 && jevoisMode == JEVOISMODEOBJ){
+				//TODO disable for pivot
+				if(serial_data_available(pi,fdJevois) > 0 && jevoisMode == JEVOISMODEOBJ && !turning){
 					cout << camGetLine(fdJevois) << endl;
 					evasiveManeuvers(curDestX,curDestY);				
 				}
@@ -281,6 +218,7 @@ int checkEncoder(int stop){
 
 int goForward(int distance,int facing){ //facing = 0 NS, 1 EW
 	cout << "Drive Forward: " << distance/TICKSPERFOOT << endl;
+	turning = false;
 	//All motors forward
 	frontLeft.run(FORWARD);	
 	frontRight.run(FORWARD);
@@ -378,6 +316,8 @@ int strafeLeft(int distance){
 	backLeft.run(FORWARD);
 	backRight.run(BACKWARD);
 	
+	turning = true;
+	
 	int startPos,stopPos;
 	if (RobotPosition.getFacing()%2 == 0){ //Fliped for strafing
 		cout << "Moving NS" << endl;
@@ -424,6 +364,8 @@ int strafeRight(int distance){
 	frontRight.run(BACKWARD);
 	backLeft.run(BACKWARD);
 	backRight.run(FORWARD);
+	
+	turning = true;
 	
 	int startPos,stopPos;
 	if (RobotPosition.getFacing()%2 == 0){ //Fliped for strafing
@@ -477,6 +419,8 @@ int pivotLeft(int positions){
 	backLeft.setSpeed(PIVOTSPEED);
 	backRight.setSpeed(PIVOTSPEED);
 	
+	turning = true;
+	
 	int startPos,stopPos;
 	//startPos = RobotPosition.curPos.NS;
 	startPos = RobotPosition.curPos.arduino;
@@ -513,6 +457,8 @@ int pivotRight(int positions){
 	frontRight.run(BACKWARD);
 	backLeft.run(FORWARD);
 	backRight.run(BACKWARD);
+	
+	turning = true;
 
 	int startPos,stopPos;
 	startPos = RobotPosition.curPos.arduino;
@@ -549,27 +495,136 @@ void evasiveManeuvers(int Xdest, int Ydest){
 	cout << "Execute Evasive Maneuvers!" << endl;
 	
 	halt();
-	goForward(TICKSPERFOOT/2,RobotPosition.getFacing()%2);
 	
-	if (RobotPosition.getFacing() % 2 == 0){
-		if(RobotPosition.curPos.EW + DOUGETICKS < BOARDEDGEEAST)
-			strafe(DOUGETICKS);
-		else
-			strafe(-DOUGETICKS);
-	} else {
-		if(RobotPosition.curPos.NS + DOUGETICKS < BOARDEDGENORTH)
-			strafe(DOUGETICKS);
-		else
-			strafe(-DOUGETICKS);
-	}
+	int Ydisp = curBlockY - RobotPosition.curPos.NS;
+	int Xdisp = curBlockX - RobotPosition.curPos.EW;
 	
-	goForward(TICKSPERFOOT*1.5,RobotPosition.getFacing()%2);
+	cout << "Protocol: ";
+	switch(RobotPosition.getFacing()){
+		case 0: //Facing North currently
+			cout << 'N';
+			if (Ydisp > 0){
+				if (Xdisp > 0){
+					cout << 1 << endl;
+					turnToFace(1);
+				} else {
+					cout << 2 << endl;
+					turnToFace(3);
+				}
+			}else{
+				cout << 3 << endl;
+				turnToFace(2);
+			}
+			break;
+		case 1: // Facing East currently
+			cout << 'E';
+			if(Xdisp > 0){
+				if(Ydisp>0){
+					cout << 1 << endl;
+					turnToFace(0);
+				} else {
+					cout << 2 << endl;
+					turnToFace(2);
+				}
+			} else {
+				cout << 3 << endl;
+				turnToFace(3);
+			}
+			break;
+		case 2: // Facing South currently
+			cout << 'S';
+			if(Ydisp<0){
+				if(Xdisp>0){
+					cout << 1 << endl;
+					turnToFace(1);
+				}else{
+					cout << 2 << endl;
+					turnToFace(3);
+				}
+			}else{
+				cout << 3 << endl;
+				turnToFace(0);
+			}
+			break;
+		case 3: // Facing West currently
+			cout << 'W';
+			if(Xdisp<0){
+				if(Ydisp>0){
+					cout << 1 << endl;
+					turnToFace(0);
+				}else{
+					cout << 2 << endl;
+					turnToFace(2);
+				}
+			}else{
+				cout << 3 << endl;
+				turnToFace(1);
+			}
+			break;
+		default:
+			cout << "Invalid Facing!" << endl;
+			return;
+		}
+		
 	
 	cout << "Begin new path" << endl;
 	lookForBlock(curBlockX,curBlockY);
 	cout << "End evasive maneuvers" << endl;
 	
 		
+	return;
+}
+
+char getBlock(){
+	cout<< "I will now pick up the block" << endl;
+	findBlockInSquare();
+	goForward(TICKSPERFOOT,(RobotPosition.getFacing()%2));
+	cameraDown();
+	activateOCR(fdJevois);
+	char letter = readBlock(fdJevois);
+	cameraUp();
+	twistOut();
+	openClaw();
+	lowerClaw();
+	closeClaw();
+	
+	liftClaw();
+	twistIn();
+	cout << "Block " << letter << " is mine!" << endl;
+	return letter;
+}
+
+void findBlockInSquare(){
+	activateBlockDetect(fdJevois);
+	int diff = 0;
+	do{
+		if (diff < 0){
+			strafeLeft(-diff*10);
+		} else {
+			strafeRight(diff*10);
+		}
+		diff = findBlock(fdJevois);
+	}while(abs(diff) > 5);
+	return;
+}
+
+void punchersDown(){
+	if(RobotPosition.getPuncher() == 1){
+		printf("Punchers Down\n");
+		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
+		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
+		RobotPosition.switchPuncherPos();
+	}	
+	return;
+}
+
+void punchersUp(){
+	if(RobotPosition.getPuncher() == 0){
+		printf("Punchers Up\n");
+		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
+		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
+		RobotPosition.switchPuncherPos();
+	}	
 	return;
 }
 
@@ -696,6 +751,10 @@ int boardMothership(char letter){
 	halt();
 	
 	// dump blocks
+	punchersUp();
+	sleep(1);
+	punchersDown();
+	usleep(500000);
 	
 	system("python StepperCCW.py");
 	
@@ -709,6 +768,10 @@ int boardMothership(char letter){
 	halt();
 	
 	// dump blocks
+	punchersUp();
+	sleep(1);
+	punchersDown();
+	usleep(500000);
 
 	system("python StepperCCW.py");
 	
@@ -722,6 +785,10 @@ int boardMothership(char letter){
 	halt();
 	
 	// dump blocks
+	punchersUp();
+	sleep(1);
+	punchersDown();
+	usleep(500000);
 	
 	// finishing light
 	
@@ -732,6 +799,7 @@ int boardMothership(char letter){
 
 // Dillon 3/19
 int lookForBlock(int blockX, int blockY){
+	activateObjectDetect(fdJevois);
 	int Ydisp = blockY - RobotPosition.curPos.NS;
 	int Xdisp = blockX - RobotPosition.curPos.EW;
 	cout << "Look for Block Case: ";
@@ -967,7 +1035,7 @@ pair<double,double> chooseDest(pair<double,double> coordinates[]){
 		cout << " dist = " << dist << endl;
 		if(dist<goDist)
 		{
-			cout << "New min dist: " << dist << "i = " << i << endl;
+			cout << "New min dist: " << dist << " i = " << i << endl;
 			goDist = dist;
 			index = i;
 		}
@@ -981,59 +1049,43 @@ pair<double,double> chooseDest(pair<double,double> coordinates[]){
 }
 
 void liftClaw(){
-//	pid_t pid;
 	printf("Lift Claw!\n");
 	if(RobotPosition.getLiftPos() == 0){
 		printf("Lifting\n");
 		liftMotor.run(UP);
 		liftMotor.setSpeed(LIFTSPEED);
-		RobotPosition.switchLiftPos();
-/*		pid = fork();
-		if (pid == 0){
-			usleep(LIFTTIME);
-			haltClaw();
-			exit(0);
-		}
-*/
+
 		while(!gpio_read(pi, LIFTTOPSWITCH))
 		{
 			usleep(1000);
 		}
+		RobotPosition.switchLiftPos();
 		haltClaw();
 	} else {
 		printf("Claw already up!\n");
 		return;
 	}	
 	return;	
-//	return pid;
 }
 
 void lowerClaw(){
-//	pid_t pid;
 	printf("Lower Claw\n");
 	if(RobotPosition.getLiftPos() == 1){
 		printf("Lowering\n");
 		liftMotor.run(DOWN);
 		liftMotor.setSpeed(LIFTSPEED);
-		RobotPosition.switchLiftPos();
-/*		pid = fork();
-		if (pid == 0){
-			usleep(LOWERTIME);
-			haltClaw();
-			exit(0);
-		}
-*/
+
 		while(!gpio_read(pi, LIFTBOTTOMSWITCH))
 		{
 			usleep(1000);
 		}
+		RobotPosition.switchLiftPos();
 		haltClaw();
 	} else {
 		printf("Claw already down!\n");
 		return;
 	}
 	return;
-//	return pid;
 }
 
 int openClaw(){
@@ -1075,7 +1127,7 @@ int cameraDown(){
 }
 
 int twistIn(){
-	if(RobotPosition.getTwistPos() == 1){
+	if(RobotPosition.getTwistPos() == 1 && RobotPosition.getLiftPos() == 1 && gpio_read(pi, LIFTTOPSWITCH)){
 		printf("Twist In\n");
 		set_servo_pulsewidth(pi,TWISTSERVOPIN,TWISTIN);
 		RobotPosition.switchTwistPos();
@@ -1085,7 +1137,8 @@ int twistIn(){
 }
 
 int twistOut(){
-	if(RobotPosition.getTwistPos() == 0){
+	cameraUp();
+	if(RobotPosition.getTwistPos() == 0 && RobotPosition.getLiftPos() == 1 && gpio_read(pi, LIFTTOPSWITCH)){
 		printf("Twist Out\n");
 		set_servo_pulsewidth(pi,TWISTSERVOPIN,TWISTOUT);
 		RobotPosition.switchTwistPos();
@@ -1135,6 +1188,54 @@ char rotateToLoad(char load){
 	return RobotPosition.getLoadZone();
 }
 
+int initilizeArduinoSerial(){
+	//int fdArduino = -1; //DO NOT USE!!!!! -Adam & Morgan
+	cout << "Open Arduino" << endl;
+	fdArduino = serialOpen("/dev/ttyACM0", 57600);
+	cout << "fdArduino = " << fdArduino << endl;
+	if (fdArduino < 0) {
+		cout << "ERROR!!! Can't talk to Arduino!" << endl;
+		exit(2);
+	}
+	char ch;
+	while(ch != '\n'){
+		ch = (char)serialGetchar(fdArduino);
+		cout << ch;
+	}
+	cout << "Arduino Open" << endl;
+	return fdArduino;
+}
+
+int initilizeJevoisSerial(){
+	cout << "Open Jevois" << endl;
+	fdJevois = serialOpen("/dev/ttyACM1", 115200);
+	//fdJevois = serialOpen("/dev/ttyACM0", 115200);
+	//fdJevois = -1;
+	
+	cout << "fdJevois = " << fdJevois << endl;
+	if (fdJevois < 0) {
+		cout << "ERROR!!! Can't talk to jevois!" << endl;
+		//serialClose(6);
+		exit(3);
+	}
+	cout << "Jevois Open" << endl;
+	setCameraSettings(fdJevois);
+	streamOn = false;
+	return fdJevois;
+}
+
+int initilizePigpiod(){
+	pi = pigpio_start(NULL,NULL); /* Connect to Pi. */
+	
+	set_mode(pi, LIFTTOPSWITCH, PI_INPUT);
+	set_mode(pi, LIFTBOTTOMSWITCH, PI_INPUT);
+	set_mode(pi, ARDUINORESETPIN, PI_OUTPUT);
+	gpio_write(pi, ARDUINORESETPIN, 1);
+	set_pull_up_down(pi, LIFTTOPSWITCH, PI_PUD_DOWN);
+	set_pull_up_down(pi, LIFTBOTTOMSWITCH, PI_PUD_DOWN);
+	return pi;
+}
+
 int halt(){
 	printf("STOP! In the name of love\n");
 	//stop all motors
@@ -1144,4 +1245,16 @@ int halt(){
 	backRight.setSpeed(0);
 	//liftMotor.setSpeed(0);
 	return 0;
+}
+
+void endProgram(){
+	rebootCam(fdJevois);
+	serialClose(fdArduino);
+	serialClose(fdJevois);
+	gpio_write(pi, ARDUINORESETPIN, 0);	
+	usleep(5);
+	gpio_write(pi, ARDUINORESETPIN, 1);
+	pigpio_stop(pi);
+	cout << "End of Program" << endl;
+	return;
 }

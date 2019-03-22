@@ -1,0 +1,69 @@
+Initilize MotorHAT on 97
+Init PWM on address 97
+pwmHatFD = 3
+Make motornum 0 on 3 from 3
+Make motornum 1 on 3 from 3
+Make motornum 2 on 3 from 3
+Make motornum 3 on 3 from 3
+Initilize MotorHAT on 96
+Init PWM on address 96
+pwmHatFD = 4
+Make motornum 0 on 4 from 4
+Make motornum 1 on 4 from 4
+Make motornum 2 on 4 from 4
+Make motornum 3 on 4 from 4
+Open Arduino
+fdArduino = 7
+SimplePollRotator example for the RotaryEncoder library.
+Arduino Open
+Open Jevois
+fdJevois = 8
+Jevois Open
+Camera settings{
+OK
+OK
+OK
+OK
+OK
+OK
+OK
+
+}
+Stream already off
+Active Object Detector{
+OK
+OK
+OK
+OK
+
+}
+Point (2,2) dist = 3167.84
+New min dist: 3167.84 i = 0
+Point (-3,1) dist = 3541.75
+Point (-2,-4) dist = 5008.79
+Next block @ (2,2)
+OK
+Active Object Detector{
+OK
+OK
+OK
+OK
+
+}
+Look for Block Case: North: 1
+Drive Forward: 2
+Set speed of motor 0 on 3
+Set speed of motor 1 on 3
+Set speed of motor 2 on 3
+Set speed of motor 3 on 3
+Set speed of motor 0 on 3
+Set speed of motor 1 on 3
+Set speed of motor 2 on 3
+Set speed of motor 3 on 3
+Start = 0
+Current NS = 0
+Current EW = 0
+Stop = 2240
+North South
+Start Check Encoder: 0
+arduino < stop

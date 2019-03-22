@@ -7,6 +7,7 @@
 #define JEVOISMODEOBJ	3
 
 int jevoisMode;
+bool streamOn;
 
 using namespace std;
 
@@ -19,6 +20,14 @@ void printChunkCam(int fd, int lines);
 void camStreamOff(int fd);
 void rebootCam(int fd);
 char readBlock(int fd);
+int findBlock(int fd);
+
+int findBlock(int fd){
+	string num = camGetLine(fd);
+	cout << "Block at " << num << endl;
+	int dist = atoi(num.c_str());
+	return dist;
+}
 
 char readBlock(int fd){
 	cout << "Reading Block" << endl;
@@ -38,13 +47,18 @@ void rebootCam(int fd){
 }
 
 void camStreamOff(int fd){
-	jevoisMode = JEVOISMODEOFF;
-	serialPuts(fd,"streamoff\n\0");
-	cout << camGetLine(fd);
+	if(streamOn){
+		jevoisMode = JEVOISMODEOFF;
+		serialPuts(fd,"streamoff\n\0");
+		cout << camGetLine(fd);
+	} else {
+		cout << "Stream already off" << endl;
+	}
 	return;
 }
 
 void activateOCR(int fd){
+	camStreamOff(fd);
 	jevoisMode = JEVOISMODEOCR;
 	cout << "Activate Camera Tesseract4{" << endl;
 	serialPuts(fd,"setmapping2 YUYV 320 240 30 ME TesseractOCR4\n\0");
@@ -53,10 +67,12 @@ void activateOCR(int fd){
 	serialPuts(fd,"streamon\n\0");
 	printChunkCam(fd,3);
 	cout << "}" << endl;
+	streamOn = true;
 	return;
 }
 
 void activateObjectDetect(int fd){
+	camStreamOff(fd);
 	jevoisMode = JEVOISMODEOBJ;
 	cout << "Active Object Detector{" << endl;
 	serialPuts(fd,"setmapping2 YUYV 320 240 30 JeVois ObjectDetect\n\0");
@@ -65,10 +81,12 @@ void activateObjectDetect(int fd){
 	serialPuts(fd,"streamon\n\0");
 	printChunkCam(fd,4);
 	cout << "}" << endl;
+	streamOn = true;
 	return;
 }
 
 void activateBlockDetect(int fd){
+	camStreamOff(fd);
 	jevoisMode = JEVOISMODEBLK;
 	cout << "Active White Detector{" << endl;
 	serialPuts(fd,"setmapping2 YUYV 320 240 30 ME WhiteTracker\n\0");
@@ -76,6 +94,7 @@ void activateBlockDetect(int fd){
 	serialPuts(fd,"streamon\n\0");
 	printChunkCam(fd,3);
 	cout << "}" << endl;
+	streamOn = true;
 	return;
 }
 

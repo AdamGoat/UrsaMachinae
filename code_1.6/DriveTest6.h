@@ -1,48 +1,263 @@
-#include "DriveTest5.h"
+#include "stdio.h"
+#include <iostream>
+#include <signal.h>
+#include <unistd.h>
+#include <string>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <string>
+#include <math.h>
+
+#include "/home/pi/Documents/UrsaMachinae/code_1.6/Adafruit_MotorHAT.h"
+#include <pigpiod_if2.h>
+#include <pigpio.h>
+
+#include <wiringSerial.h>
+
 #include "cameraControl.h"
 
-//#define FORWARDSPEED 	 	250
-//#define STRAFESPEED  	 	250
-//#define PIVOTSPEED		 	150
-//#define UP		 	 		FORWARD
-//#define DOWN		 		BACKWARD
-//#define LIFTSPEED	 		250
-//#define LIFTTIME	 		6950000
-//#define LOWERTIME	 		6900000
-//#define PIVOTTIME	 		3500000
-//#define TWISTSERVOPIN		18 
-//#define GRIPPERSERVOPIN 	17
-//#define CAMERASERVOPIN		24
-//#define	LIFTTOPSWITCH		21
-//#define LIFTBOTTOMSWITCH	19
-//#define MIN_SERVO	 		700
-//#define	MAX_SERVO	 		2050
-//#define CAMERAUP	 		1600
-//#define CAMERADOWN	 		900
-//#define TWISTIN 	 		554
-//#define TWISTOUT 	 		2250
-//#define NSFACING	 		0
-//#define EWFACING	 		1
-//#define PIVOTTICKS	 		1090
-//#define TICKSPERFOOT 		1160
-//#define	DOUGETICKS	 		TICKSPERFOOT/2
+#define FORWARDSPEED 	 	250
+#define STRAFESPEED  	 	150
+#define PIVOTSPEED		 	150
+#define UP		 	 		FORWARD
+#define DOWN		 		BACKWARD
+#define LIFTSPEED	 		250
+#define LIFTTIME	 		6950000
+#define LOWERTIME	 		6900000
+#define PIVOTTIME	 		3500000
+#define TWISTSERVOPIN		18 
+#define GRIPPERSERVOPIN 	17
+#define CAMERASERVOPIN		24
+#define	LIFTTOPSWITCH		21
+#define LIFTBOTTOMSWITCH	19
+#define MIN_SERVO	 		700
+#define	MAX_SERVO	 		2150
+#define CAMERAUP	 		1600
+#define CAMERADRIVE			1150
+#define CAMERADOWN	 		950
+#define TWISTIN 	 		554
+#define TWISTOUT 	 		2250
+#define NSFACING	 		0
+#define EWFACING	 		1
+#define PIVOTTICKS	 		1125
+#define TICKSPERFOOT 		1143
+#define	DOUGETICKS	 		TICKSPERFOOT/2
 
-//#define LEFTPUNCHERPIN		27
-//#define RIGHTPUNCHERPIN		22
-//#define LEFTPUNCHERUP		600
-//#define LEFTPUNCHERDOWN		2200
-//#define RIGHTPUNCHERUP		2200
-//#define RIGHTPUNCHERDOWN	600
+#define LEFTPUNCHERPIN		27
+#define RIGHTPUNCHERPIN		22
+#define LEFTPUNCHERUP		600
+#define LEFTPUNCHERDOWN		2200
+#define RIGHTPUNCHERUP		2200
+#define RIGHTPUNCHERDOWN	600
 
-//#define ARDUINORESETPIN		4
+#define ARDUINORESETPIN		4
 
-////TODO Define edges to [-4,3]
-//#define BOARDEDGENORTH		8*TICKSPERFOOT
-//#define BOARDEDGESOUTH		0
-//#define BOARDEDGEEAST		8*TICKSPERFOOT 
-//#define BOARDEDGEWEST		0
+//TODO Define edges to [-4,3]
+#define BOARDEDGENORTH		8*TICKSPERFOOT
+#define BOARDEDGESOUTH		0
+#define BOARDEDGEEAST		8*TICKSPERFOOT 
+#define BOARDEDGEWEST		0
+
+//enum Directions {N, E, S, W};
 
 using namespace std;
+
+
+
+struct pos{
+	double NS;
+	double EW;
+	//Directions facing;
+	int facing;
+	double ang;
+	int claw;
+	int lift;
+	int camera;
+	int twist;
+	char loadZone;
+	char dumpZone;
+	int arduino;
+	int puncher;
+	int stepperOffset;
+};
+
+class position{
+	public:
+	pos curPos;
+	position(){
+		curPos.NS = 0;
+		curPos.EW = 0;
+		curPos.ang = 0;
+		curPos.claw = 1;
+		curPos.lift = 0;
+		curPos.facing = 0;
+		curPos.camera = 1;
+		curPos.twist = 1;
+		curPos.loadZone = 'A';
+		curPos.dumpZone = 'A';
+		curPos.arduino = 000;
+		curPos.puncher = 0;
+		curPos.stepperOffset = 0;
+	}
+	pos getCurrentPos(){
+		return curPos;
+	}
+	pos moveNS(double change){
+		curPos.NS += change;
+		return curPos;
+	}
+	pos moveEW(double change){
+		curPos.EW += change;
+		return curPos;
+	}
+	pos changeAng(double change){
+		curPos.ang += change;
+		return curPos;
+	}
+	pos changeFacingCW(){
+		++(curPos.facing) %= 4;
+		return curPos;
+	}
+	pos changeFacingCCW(){
+		curPos.facing--;
+		if (curPos.facing < 0)
+			curPos.facing = 3;
+		return curPos;
+	}
+	int getFacing(){
+		return curPos.facing;
+	}
+	int getPuncher(){
+		return curPos.puncher;
+	}
+	int getLiftPos(){
+		// 0 = down
+		// 1 = up
+		return curPos.lift;
+	}
+	int switchLiftPos(){
+		curPos.lift++;
+		curPos.lift %= 2;
+		return curPos.lift;
+	}
+	int getClawPos(){
+		// 0 = open
+		// 1 = close
+		return curPos.claw;
+	}
+	int switchClawPos(){
+		curPos.claw++;
+		curPos.claw %= 2;
+		return curPos.claw;
+	}
+	int getCameraPos(){
+		// 0 = down
+		// 1 = up
+		// 2 = drive
+		return curPos.camera;
+	}
+	int switchCameraPos(){
+		curPos.camera++;
+		curPos.camera %= 2;
+		return curPos.camera;
+	}
+	int getTwistPos(){
+		// 0 = in
+		// 1 = out
+		return curPos.twist;
+	}
+	int switchTwistPos(){
+		curPos.twist++;
+		curPos.twist %= 2;
+		return curPos.twist;
+	}
+	int switchPuncherPos(){
+		curPos.puncher++;
+		curPos.puncher %= 2;
+		return curPos.puncher;
+	}
+	char getLoadZone(){
+		//A = A 
+		//B = B
+		//C = C
+		//D = F
+		//E = E
+		//F = D
+		return curPos.loadZone;
+	}
+	char getDumpZone(){
+		//A = AF
+		//B = BE
+		//C = CD
+		return curPos.dumpZone;
+	}
+	char incLoadZone(){
+		curPos.loadZone++;
+		cout << "Inc load to " << curPos.loadZone << endl;
+		if (curPos.loadZone > 'F'){
+			cout << "IncLoad wrap " << curPos.loadZone << endl;
+			curPos.loadZone = 'A';
+		}
+		return curPos.loadZone;
+	}
+	char decLoadZone(){
+		curPos.loadZone--;
+		if (curPos.loadZone < 'A')
+			curPos.loadZone ='F';
+		return curPos.loadZone;
+	}
+	int getArduinoValue(){
+		return curPos.arduino;
+	}
+};
+
+int goForward(int distance,int facing);
+int strafeLeft(int distance);
+int strafeRight(int distance);
+int pivotLeft(int positions);
+int pivotRight(int positions);
+void liftClaw();
+void lowerClaw();
+int openClaw();
+int closeClaw();
+int haltClaw();
+int halt();
+void ctrl_c_handler(int s);
+int checkEncoder(int stop);
+int cameraUp();
+int cameraDown();
+int twistIn();
+int twistOut();
+char rotateToLoad(char load);
+void switchToDump();
+char rotateToDump(char dump);
+int turnToFace(int direction);
+int goToPointNS(int Xdest, int Ydest);
+int goToPointEW(int Xdest, int Ydest);
+pair<double,double> chooseDest(pair<double,double> coordinates[]);
+void evasiveManeuvers(int Xdest, int Ydest);
+void strafe(int distance);
+int lookForBlock(int blockX, int blockY);
+int initilizeArduinoSerial();
+int initilizeJevoisSerial();
+int initilizePigpiod();
+void endProgram();
+
+//void serialTrash(int fd);
+int findBlock(int fd);
+void cameraDrive();
+
+char getBlock();
+void findBlockInSquare();
+void punchersUp();
+void punchersDown();
+
+void clockwiseSixth();
+void counterClockwiseSixth();
 
 Adafruit_MotorHAT  hat (0x61,1600,-1,-1);
 Adafruit_MotorHAT  hat2(0x60,1600,-1,-1);
@@ -64,135 +279,6 @@ int curDestX;
 int curDestY;
 int numBlocks;
 bool turning;
-
-void ctrl_c_handler(int s){
-	cout << "Caught signal " << s << endl;
-	frontLeft.run(RELEASE);	
-	frontRight.run(RELEASE);
-	backLeft.run(RELEASE);
-	backRight.run(RELEASE);
-	liftMotor.run(RELEASE);
-	halt();
-	haltClaw();
-	camStreamOff(fdJevois);
-	rebootCam(fdJevois);
-	serialClose(fdArduino);
-	serialClose(fdJevois);
-	hat.resetAll();
-	hat2.resetAll();
-	//gpioTerminate();
-	gpio_write(pi, ARDUINORESETPIN, 0);
-	usleep(5);
-	gpio_write(pi, ARDUINORESETPIN, 1);
-	pigpio_stop(pi);
-	exit(1);
-}
-
-int main(){
-	signal(2, ctrl_c_handler);
-	
-	initilizePigpiod();	
-	initilizeArduinoSerial();
-	initilizeJevoisSerial();	
-	
-	double startX = 0;
-	double startY = 0;
-	char pause;
-	
-	RobotPosition.curPos.NS = startY*TICKSPERFOOT;
-	RobotPosition.curPos.EW	= startX*TICKSPERFOOT;
-
-	pair<double,double> locals[3];
-	pair<double,double> blk1;
-	pair<double,double> blk2;
-	pair<double,double> blk3;
-	
-	blk1.first = -4;
-	blk1.second = 3;
-	blk2.first = 3;
-	blk2.second = -4;
-	blk3.first = 100;
-	blk3.second = 100;
-
-	locals[0] = blk1;
-	locals[1] = blk2;
-	locals[2] = blk3;
-
-	numBlocks = 3;
-	//openClaw();
-	//sleep(2);
-	closeClaw();
-	//sleep(2);
-	liftClaw();
-	twistIn();
-	cameraDown();
-	/*char l = 'B';
-	openClaw();
-	sleep(2);	
-	while (true){
-		twistOut();
-		sleep(2);
-		lowerClaw();
-		sleep(2);
-		closeClaw();
-		sleep(2);
-		liftClaw();
-		sleep(2);
-		rotateToLoad(l);
-		l++;
-		sleep(2);
-		twistIn();
-		sleep(2);
-	}*/
-
-
-	for (int i = 0; i < numBlocks-1; i++){
-		//activateObjectDetect(fdJevois);
-		pair<double,double> result;
-		result = chooseDest(locals);
-		cout << "Next block @ (" << curBlockX << "," << curBlockY << ")" << endl;
-		lookForBlock(curBlockX*TICKSPERFOOT,curBlockY*TICKSPERFOOT);
-		halt();
-		cout << "Block " << i << " found" <<endl;
-		char letter = getBlock();
-		cout << "Block is " << letter << endl;
-		rotateToLoad(letter);
-		liftClaw();
-		twistIn();
-		sleep(1);
-
-		openClaw();
-		sleep(2);
-	}
-	cout << "ALL BLOCKS FOUND!" << endl;
-	halt();
-	
-	/*cout << "Dump Blocks" << endl;
-		twistIn();
-		sleep(1);
-
-		openClaw();*/
-		//sleep(2);
-	//}
-	//cout << "ALL BLOCKS FOUND!" << endl;
-	//halt();
-	
-	/*cout << "Dump Blocks" << endl;
-	rotateToLoad('E');
-	system("python StepperTwelfthCCW.py");
-	for (int i = 0; i < 3; i++){
-		punchersUp();
-		sleep(1);
-		punchersDown();
-		usleep(500000);
-		system("python StepperCCW.py");
-	}*/
-		
-	
-
-	endProgram();
-	return 0;
-}
 
 int checkEncoder(int stop){
 		char ch = '0';
@@ -420,7 +506,7 @@ int strafeRight(int distance){
 	}*/
 	startPos = RobotPosition.curPos.arduino;
 	
-	stopPos = startPos + (distance) + 50;
+	stopPos = startPos + (distance) /*+ 50*/;
 	cout << "Start = " << startPos << endl;
 	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
 	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
@@ -622,9 +708,9 @@ char getBlock(){
 	cout<< "I will now pick up the block" << endl;
 	//findBlockInSquare();
 	if (RobotPosition.getFacing()>1){
-		goForward(-TICKSPERFOOT,(RobotPosition.getFacing()%2));
+		goForward(-.9*TICKSPERFOOT,(RobotPosition.getFacing()%2));
 	} else {
-		goForward(TICKSPERFOOT,(RobotPosition.getFacing()%2));
+		goForward(.9*TICKSPERFOOT,(RobotPosition.getFacing()%2));
 	}
 
 	halt();
@@ -644,27 +730,33 @@ char getBlock(){
 }
 
 int findBlock(int fd){
-	serialTrash(fd);
+	//serialTrash(fd);
+	//fd = initilizeJevoisSerial();
+	activateBlockDetect(fd);
 	string num = camGetLine(fd);
 	cout << "Block at " << num << endl;
+	camStreamOff(fd);
+	//serial_close(pi,fd);
 	int dist = atoi(num.c_str());
 	return dist;
 }
 
 void findBlockInSquare(){
-	cout << "Find block in square." << endl;
-	activateBlockDetect(fdJevois);
+	//activateBlockDetect(fdJevois);
+	//serial_close(pi,fdJevois);
 	int diff = 0;
 	do{
 		if (diff < 0){
-			cout << "Strafe Left " << -diff*10 << endl;
-			strafeLeft(-diff*2);
-		} else {
-			cout << "Strafe Right " << diff*10 << endl;
-			strafeRight(diff*2);
-		}
+			cout << "Strafe Left to Block " << diff*1 << endl;
+			strafeLeft((int)(-diff*1));
+		} else if ( diff > 0) {
+			cout << "Strafe Right to Block " << -diff*1 << endl;
+			strafeRight((int)(-diff*1));
+		} 
+		halt();
 		diff = findBlock(fdJevois);
-	}while(abs(diff) > 5);
+		//serialTrash(fdJevois);
+	}while(abs(diff) > 10);
 	return;
 }
 
@@ -1195,6 +1287,15 @@ int cameraDown(){
 	return RobotPosition.getCameraPos();
 }
 
+void cameraDrive(){
+	if(RobotPosition.getCameraPos() == 0 || true){
+		printf("Camera Drive\n");
+		set_servo_pulsewidth(pi,CAMERASERVOPIN,CAMERADRIVE);
+		//RobotPosition.switchCameraPos();
+	}
+	return;
+}
+
 int twistIn(){
 	if(/*RobotPosition.getTwistPos() == 1 && */gpio_read(pi, LIFTTOPSWITCH)){
 		printf("Twist In\n");
@@ -1322,15 +1423,18 @@ char rotateToLoad(char load){
 
 
 
-void serialTrash(int fd){
+/*void serialTrash(int fd){
+	cout << "pi = " << pi << endl;
 	int bytes = serial_data_available(pi,fd);
-	
+	cout << "dumping " << bytes << " bytes of data from " << fd << endl;
 	if (bytes > 0){
-		cout << "dumping " << bytes << " bytes of data from " << fd << endl;
 		serial_read(pi,fd,NULL,bytes);
+	} else {
+		cout << PI_BAD_HANDLE << endl;
+		cout << pigpio_error(bytes) << endl;
 	}
 	return;
-}
+}*/
 
 int initilizeArduinoSerial(){
 	//int fdArduino = -1; //DO NOT USE!!!!! -Adam & Morgan
@@ -1371,6 +1475,7 @@ int initilizeJevoisSerial(){
 int initilizePigpiod(){
 	cout << "Start pigpiod" << endl;
 	pi = pigpio_start(NULL,NULL); /* Connect to Pi. */
+	cout << "pi = " << pi << endl;
 	
 	set_mode(pi, LIFTTOPSWITCH, PI_INPUT);
 	set_mode(pi, LIFTBOTTOMSWITCH, PI_INPUT);
@@ -1394,8 +1499,6 @@ int halt(){
 
 void endProgram(){
 	rebootCam(fdJevois);
-	serialTrash(fdArduino);
-	serialTrash(fdJevois);
 	serialClose(fdArduino);
 	serialClose(fdJevois);
 	gpio_write(pi, ARDUINORESETPIN, 0);	
@@ -1404,4 +1507,27 @@ void endProgram(){
 	pigpio_stop(pi);
 	cout << "End of Program" << endl;
 	return;
+}
+
+void ctrl_c_handler(int s){
+	cout << "Caught signal " << s << endl;
+	frontLeft.run(RELEASE);	
+	frontRight.run(RELEASE);
+	backLeft.run(RELEASE);
+	backRight.run(RELEASE);
+	liftMotor.run(RELEASE);
+	halt();
+	haltClaw();
+	camStreamOff(fdJevois);
+	rebootCam(fdJevois);
+	serialClose(fdArduino);
+	serialClose(fdJevois);
+	hat.resetAll();
+	hat2.resetAll();
+	//gpioTerminate();
+	gpio_write(pi, ARDUINORESETPIN, 0);
+	usleep(5);
+	gpio_write(pi, ARDUINORESETPIN, 1);
+	pigpio_stop(pi);
+	exit(1);
 }

@@ -44,9 +44,10 @@ void rebootCam(int fd){
 
 void camStreamOff(int fd){
 	if(streamOn){
+		cout << "Stream off: ";
 		jevoisMode = JEVOISMODEOFF;
 		serialPuts(fd,"streamoff\n\0");
-		cout << camGetLine(fd);
+		cout << camGetLine(fd) << endl;
 	} else {
 		cout << "Stream already off" << endl;
 	}

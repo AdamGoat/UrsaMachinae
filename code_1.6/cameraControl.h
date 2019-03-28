@@ -20,14 +20,9 @@ void printChunkCam(int fd, int lines);
 void camStreamOff(int fd);
 void rebootCam(int fd);
 char readBlock(int fd);
-int findBlock(int fd);
 
-int findBlock(int fd){
-	string num = camGetLine(fd);
-	cout << "Block at " << num << endl;
-	int dist = atoi(num.c_str());
-	return dist;
-}
+
+
 
 char readBlock(int fd){
 	cout << "Reading Block" << endl;

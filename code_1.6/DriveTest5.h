@@ -12,12 +12,53 @@
 #include <string>
 #include <math.h>
 
-#include "/home/pi/Documents/UrsaMachinae/code_1.5/Adafruit_MotorHAT.h"
+#include "/home/pi/Documents/UrsaMachinae/code_1.6/Adafruit_MotorHAT.h"
 #include <pigpiod_if2.h>
 #include <pigpio.h>
-#include  "RED.h"
 
 #include <wiringSerial.h>
+
+#define FORWARDSPEED 	 	250
+#define STRAFESPEED  	 	250
+#define PIVOTSPEED		 	150
+#define UP		 	 		FORWARD
+#define DOWN		 		BACKWARD
+#define LIFTSPEED	 		250
+#define LIFTTIME	 		6950000
+#define LOWERTIME	 		6900000
+#define PIVOTTIME	 		3500000
+#define TWISTSERVOPIN		18 
+#define GRIPPERSERVOPIN 	17
+#define CAMERASERVOPIN		24
+#define	LIFTTOPSWITCH		13
+#define LIFTBOTTOMSWITCH	19
+#define MIN_SERVO	 		700
+#define	MAX_SERVO	 		2150
+#define CAMERAUP	 		1600
+#define CAMERADRIVE			1300
+#define CAMERADOWN	 		900
+#define TWISTIN 	 		554
+#define TWISTOUT 	 		2250
+#define NSFACING	 		0
+#define EWFACING	 		1
+#define PIVOTTICKS	 		1125
+#define TICKSPERFOOT 		1143
+#define	DOUGETICKS	 		TICKSPERFOOT/2
+
+#define LEFTPUNCHERPIN		27
+#define RIGHTPUNCHERPIN		22
+#define LEFTPUNCHERUP		600
+#define LEFTPUNCHERDOWN		2200
+#define RIGHTPUNCHERUP		2200
+#define RIGHTPUNCHERDOWN	600
+
+#define ARDUINORESETPIN		4
+
+//TODO Define edges to [-4,3]
+#define BOARDEDGENORTH		8*TICKSPERFOOT
+#define BOARDEDGESOUTH		0
+#define BOARDEDGEEAST		8*TICKSPERFOOT 
+#define BOARDEDGEWEST		0
 
 //enum Directions {N, E, S, W};
 
@@ -37,6 +78,7 @@ struct pos{
 	char dumpZone;
 	int arduino;
 	int puncher;
+	int stepperOffset;
 };
 
 class position{
@@ -55,6 +97,7 @@ class position{
 		curPos.dumpZone = 'A';
 		curPos.arduino = 000;
 		curPos.puncher = 0;
+		curPos.stepperOffset = 0;
 	}
 	pos getCurrentPos(){
 		return curPos;
@@ -110,6 +153,7 @@ class position{
 	int getCameraPos(){
 		// 0 = down
 		// 1 = up
+		// 2 = drive
 		return curPos.camera;
 	}
 	int switchCameraPos(){
@@ -199,9 +243,16 @@ int initilizeJevoisSerial();
 int initilizePigpiod();
 void endProgram();
 
+void serialTrash(int fd);
+int findBlock(int fd);
+void cameraDrive();
+
 char getBlock();
 void findBlockInSquare();
 void punchersUp();
 void punchersDown();
+
+void clockwiseSixth();
+void counterClockwiseSixth();
 
 //position RobotPosition;

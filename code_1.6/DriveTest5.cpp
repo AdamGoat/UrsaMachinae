@@ -1,46 +1,46 @@
-#include "DriveTest4.h"
+#include "DriveTest5.h"
 #include "cameraControl.h"
 
-#define FORWARDSPEED 	 	250
-#define STRAFESPEED  	 	250
-#define PIVOTSPEED		 	150
-#define UP		 	 		FORWARD
-#define DOWN		 		BACKWARD
-#define LIFTSPEED	 		250
-#define LIFTTIME	 		6950000
-#define LOWERTIME	 		6900000
-#define PIVOTTIME	 		3500000
-#define TWISTSERVOPIN		18 
-#define GRIPPERSERVOPIN 	17
-#define CAMERASERVOPIN		24
-#define	LIFTTOPSWITCH		13
-#define LIFTBOTTOMSWITCH	19
-#define MIN_SERVO	 		700
-#define	MAX_SERVO	 		2050
-#define CAMERAUP	 		1600
-#define CAMERADOWN	 		900
-#define TWISTIN 	 		554
-#define TWISTOUT 	 		2250
-#define NSFACING	 		0
-#define EWFACING	 		1
-#define PIVOTTICKS	 		1090
-#define TICKSPERFOOT 		1160
-#define	DOUGETICKS	 		TICKSPERFOOT/2
+//#define FORWARDSPEED 	 	250
+//#define STRAFESPEED  	 	250
+//#define PIVOTSPEED		 	150
+//#define UP		 	 		FORWARD
+//#define DOWN		 		BACKWARD
+//#define LIFTSPEED	 		250
+//#define LIFTTIME	 		6950000
+//#define LOWERTIME	 		6900000
+//#define PIVOTTIME	 		3500000
+//#define TWISTSERVOPIN		18 
+//#define GRIPPERSERVOPIN 	17
+//#define CAMERASERVOPIN		24
+//#define	LIFTTOPSWITCH		13
+//#define LIFTBOTTOMSWITCH	19
+//#define MIN_SERVO	 		700
+//#define	MAX_SERVO	 		2050
+//#define CAMERAUP	 		1600
+//#define CAMERADOWN	 		900
+//#define TWISTIN 	 		554
+//#define TWISTOUT 	 		2250
+//#define NSFACING	 		0
+//#define EWFACING	 		1
+//#define PIVOTTICKS	 		1090
+//#define TICKSPERFOOT 		1160
+//#define	DOUGETICKS	 		TICKSPERFOOT/2
 
-#define LEFTPUNCHERPIN		27
-#define RIGHTPUNCHERPIN		22
-#define LEFTPUNCHERUP		600
-#define LEFTPUNCHERDOWN		2200
-#define RIGHTPUNCHERUP		2200
-#define RIGHTPUNCHERDOWN	600
+//#define LEFTPUNCHERPIN		27
+//#define RIGHTPUNCHERPIN		22
+//#define LEFTPUNCHERUP		600
+//#define LEFTPUNCHERDOWN		2200
+//#define RIGHTPUNCHERUP		2200
+//#define RIGHTPUNCHERDOWN	600
 
-#define ARDUINORESETPIN		4
+//#define ARDUINORESETPIN		4
 
-//TODO Define edges to [-4,3]
-#define BOARDEDGENORTH		8*TICKSPERFOOT
-#define BOARDEDGESOUTH		0
-#define BOARDEDGEEAST		8*TICKSPERFOOT 
-#define BOARDEDGEWEST		0
+////TODO Define edges to [-4,3]
+//#define BOARDEDGENORTH		8*TICKSPERFOOT
+//#define BOARDEDGESOUTH		0
+//#define BOARDEDGEEAST		8*TICKSPERFOOT 
+//#define BOARDEDGEWEST		0
 
 using namespace std;
 
@@ -109,12 +109,12 @@ int main(){
 	pair<double,double> blk2;
 	pair<double,double> blk3;
 	
-	blk1.first = 2;
-	blk1.second = 2;
-	blk2.first = -3;
-	blk2.second = 1;
-	blk3.first = -2;
-	blk3.second = -4;
+	blk1.first = -4;
+	blk1.second = 3;
+	blk2.first = 3;
+	blk2.second = -4;
+	blk3.first = 100;
+	blk3.second = 100;
 
 	locals[0] = blk1;
 	locals[1] = blk2;
@@ -124,11 +124,11 @@ int main(){
 	//openClaw();
 	//sleep(2);
 	closeClaw();
-	sleep(2);
+	//sleep(2);
 	liftClaw();
 	twistIn();
-	cameraUp();
-	char l = 'B';
+	cameraDown();
+	/*char l = 'B';
 	openClaw();
 	sleep(2);	
 	while (true){
@@ -145,10 +145,10 @@ int main(){
 		sleep(2);
 		twistIn();
 		sleep(2);
-	}
+	}*/
 
 
-	/*for (int i = 0; i < numBlocks-0; i++){
+	for (int i = 0; i < numBlocks-1; i++){
 		//activateObjectDetect(fdJevois);
 		pair<double,double> result;
 		result = chooseDest(locals);
@@ -157,7 +157,7 @@ int main(){
 		halt();
 		cout << "Block " << i << " found" <<endl;
 		char letter = getBlock();
-		//cout << "Block is " << letter << endl;
+		cout << "Block is " << letter << endl;
 		rotateToLoad(letter);
 		liftClaw();
 		twistIn();
@@ -165,9 +165,9 @@ int main(){
 
 		openClaw();
 		sleep(2);
-	}*/
-	//cout << "ALL BLOCKS FOUND!" << endl;
-	//halt();
+	}
+	cout << "ALL BLOCKS FOUND!" << endl;
+	halt();
 	
 	/*cout << "Dump Blocks" << endl;
 		twistIn();
@@ -192,7 +192,7 @@ int main(){
 		
 	
 
-	//endProgram();
+	endProgram();
 	return 0;
 }
 
@@ -283,10 +283,15 @@ int goForward(int distance,int facing){ //facing = 0 NS, 1 EW
 	stopPos = startPos + abs(distance);
 	
 	//All motors max speed
-	frontLeft.setSpeed(FORWARDSPEED+5);
-	frontRight.setSpeed(FORWARDSPEED-9);
-	backLeft.setSpeed(FORWARDSPEED+5);
-	backRight.setSpeed(FORWARDSPEED-9);
+	//frontLeft.setSpeed(FORWARDSPEED+5);
+	//frontRight.setSpeed(FORWARDSPEED-7);
+	//backLeft.setSpeed(FORWARDSPEED+5);
+	//backRight.setSpeed(FORWARDSPEED-7);
+	frontLeft.setSpeed(FORWARDSPEED+4);
+	frontRight.setSpeed(FORWARDSPEED-2.1);
+	backLeft.setSpeed(FORWARDSPEED-5);
+	backRight.setSpeed(FORWARDSPEED-2.1);
+
 	
 	cout << "Start = " << startPos << endl;
 	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
@@ -618,7 +623,12 @@ void evasiveManeuvers(int Xdest, int Ydest){
 char getBlock(){
 	cout<< "I will now pick up the block" << endl;
 	//findBlockInSquare();
-	goForward(TICKSPERFOOT,(RobotPosition.getFacing()%2));
+	if (RobotPosition.getFacing()>1){
+		goForward(-TICKSPERFOOT,(RobotPosition.getFacing()%2));
+	} else {
+		goForward(TICKSPERFOOT,(RobotPosition.getFacing()%2));
+	}
+
 	halt();
 	cameraDown();
 	//activateOCR(fdJevois);
@@ -635,14 +645,25 @@ char getBlock(){
 	return letter;
 }
 
+int findBlock(int fd){
+	serialTrash(fd);
+	string num = camGetLine(fd);
+	cout << "Block at " << num << endl;
+	int dist = atoi(num.c_str());
+	return dist;
+}
+
 void findBlockInSquare(){
+	cout << "Find block in square." << endl;
 	activateBlockDetect(fdJevois);
 	int diff = 0;
 	do{
 		if (diff < 0){
-			strafeLeft(-diff*10);
+			cout << "Strafe Left " << -diff*10 << endl;
+			strafeLeft(-diff*2);
 		} else {
-			strafeRight(diff*10);
+			cout << "Strafe Right " << diff*10 << endl;
+			strafeRight(diff*2);
 		}
 		diff = findBlock(fdJevois);
 	}while(abs(diff) > 5);
@@ -1170,7 +1191,7 @@ int cameraDown(){
 }
 
 int twistIn(){
-	if(RobotPosition.getTwistPos() == 1 && RobotPosition.getLiftPos() == 1 && gpio_read(pi, LIFTTOPSWITCH)){
+	if(RobotPosition.getTwistPos() == 1 && gpio_read(pi, LIFTTOPSWITCH)){
 		printf("Twist In\n");
 		set_servo_pulsewidth(pi,TWISTSERVOPIN,TWISTIN);
 		RobotPosition.switchTwistPos();
@@ -1198,6 +1219,65 @@ int haltClaw(){
 	return 0;
 }
 
+void clockwiseSixth(){
+	switch(RobotPosition.curPos.stepperOffset)
+	{
+		case -2:
+			system("python StepperClockwiseExtra.py");
+			RobotPosition.curPos.stepperOffset = 1;
+			break;
+			
+		case -1:
+			system("python StepperClockwise.py");
+			RobotPosition.curPos.stepperOffset = 0;
+			break;
+			
+		case 0:
+			system("python StepperClockwise.py");
+			RobotPosition.curPos.stepperOffset = 1;
+			break;
+		
+		case 1:
+			system("python StepperClockwise.py");
+			RobotPosition.curPos.stepperOffset = 2;
+			break;
+			
+		case 2:
+			system("python StepperClockwiseExtra.py");
+			RobotPosition.curPos.stepperOffset = 0;
+			break;
+	}	
+}
+
+void counterClockwiseSixth(){
+	switch(RobotPosition.curPos.stepperOffset)
+	{
+		case -2:
+			system("python StepperCCWExtra.py");
+			RobotPosition.curPos.stepperOffset = 0;
+			break;
+			
+		case -1:
+			system("python StepperCCW.py");
+			RobotPosition.curPos.stepperOffset = -2;
+			break;
+			
+		case 0:
+			system("python StepperCCW.py");
+			RobotPosition.curPos.stepperOffset = -1;
+			break;
+		
+		case 1:
+			system("python StepperCCW.py");
+			RobotPosition.curPos.stepperOffset = 0;
+			break;
+			
+		case 2:
+			system("python StepperCCWExtra.py");
+			RobotPosition.curPos.stepperOffset = -1;
+			break;
+	}	
+}
 char rotateToLoad(char load){
 	char cur = RobotPosition.getLoadZone();
 	if (load == 'D'){
@@ -1218,19 +1298,33 @@ char rotateToLoad(char load){
 	cout << "Rotating " << dist << " spots" << endl;
 	if (dist > 0){
 		for(int i = 0; i < dist; i++){
-			system("python StepperClockwise.py");
+//			system("python StepperClockwise.py");  // Should be taken care of by clockwiseSixth()
+			clockwiseSixth();
 			cout << RobotPosition.incLoadZone() << endl;
 			cout << "Load Zone is now " << RobotPosition.getLoadZone() << endl;
 		}
 	} else if (dist < 0) {
 		for(int i = 0; i > dist; i--){
-			system("python StepperCCW.py");
+//			system("python StepperCCW.py");		// Should be taken care of by counterClockwiseSixth()
+			counterClockwiseSixth();
 			RobotPosition.decLoadZone();
 			cout << "Load Zone is now " << RobotPosition.getLoadZone() << endl;
 		}
 	}
 	cout << "Final Load Zone is now " << RobotPosition.getLoadZone() << endl;
 	return RobotPosition.getLoadZone();
+}
+
+
+
+void serialTrash(int fd){
+	int bytes = serial_data_available(pi,fd);
+	
+	if (bytes > 0){
+		cout << "dumping " << bytes << " bytes of data from " << fd << endl;
+		serial_read(pi,fd,NULL,bytes);
+	}
+	return;
 }
 
 int initilizeArduinoSerial(){
@@ -1289,8 +1383,20 @@ int halt(){
 	frontRight.setSpeed(0);
 	backLeft.setSpeed(0);
 	backRight.setSpeed(0);
-	//liftMotor.setSpeed(0);
+	liftMotor.setSpeed(0);
 	return 0;
 }
 
-//void endProgram(){
+void endProgram(){
+	rebootCam(fdJevois);
+	serialTrash(fdArduino);
+	serialTrash(fdJevois);
+	serialClose(fdArduino);
+	serialClose(fdJevois);
+	gpio_write(pi, ARDUINORESETPIN, 0);	
+	usleep(5);
+	gpio_write(pi, ARDUINORESETPIN, 1);
+	pigpio_stop(pi);
+	cout << "End of Program" << endl;
+	return;
+}

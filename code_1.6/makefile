@@ -8,3 +8,4 @@ all:
 	g++ -o serialTest serialTest.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
 #	g++ -o LazyMorganTest LazyMorganTest.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
 	g++ -o DriveTest6 DriveTest6.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
+	g++ -o PuncherTest PuncherTest.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g

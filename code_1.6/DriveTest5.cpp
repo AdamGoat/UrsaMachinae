@@ -809,7 +809,7 @@ int boardMothership(char letter){
 	backRight.run(FORWARD);
 	checkEncoder(stop);
 	halt();
-	
+	sleep(1);
 	// dump blocks
 	punchersUp();
 	sleep(1);
@@ -826,7 +826,7 @@ int boardMothership(char letter){
 	backRight.run(FORWARD);
 	checkEncoder(stop);
 	halt();
-	
+	sleep(1);
 	// dump blocks
 	punchersUp();
 	sleep(1);
@@ -843,7 +843,7 @@ int boardMothership(char letter){
 	backRight.run(FORWARD);
 	checkEncoder(stop);
 	halt();
-	
+	sleep(1);
 	// dump blocks
 	punchersUp();
 	sleep(1);

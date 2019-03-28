@@ -21,7 +21,7 @@
 #include "cameraControl.h"
 
 #define FORWARDSPEED 	 	250
-#define STRAFESPEED  	 	150
+#define STRAFESPEED  	 	250
 #define PIVOTSPEED		 	150
 #define UP		 	 		FORWARD
 #define DOWN		 		BACKWARD

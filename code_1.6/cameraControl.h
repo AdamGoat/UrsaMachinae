@@ -21,8 +21,33 @@ void camStreamOff(int fd);
 void rebootCam(int fd);
 char readBlock(int fd);
 
+void pingCam(int fd){
+	cout << "Ping" << endl;
+	serialPuts(fd,"ping\n\0");
+	string line = camGetLine(fd);
+	cout << line << endl;
+	//cout << "cmp " <<line.find("ALIVE") << endl;
+	while(line.find("ALIVE") != 0){
+		line = camGetLine(fd);
+		cout << line;
+		//cout << "cmp " <<line.find("ALIVE") << endl;
+	}
+	cout << line;
+	cout << "End Ping" << endl;
+	cout << camGetLine(fd);
+	return;
+}
 
 
+char readObject(int fd){
+	cout << "Reading Object" << endl;
+	string line = camGetLine(fd);
+	camStreamOff(fd);
+	cout << "Object Info: " << line << endl;
+	char obj = (line.c_str())[line.find_first_of(' ')+1];
+	pingCam(fd);
+	return obj;
+}
 
 char readBlock(int fd){
 	cout << "Reading Block" << endl;
@@ -44,10 +69,12 @@ void rebootCam(int fd){
 
 void camStreamOff(int fd){
 	if(streamOn){
-		cout << "Stream off: ";
+		cout << "Stream off: " << endl;
 		jevoisMode = JEVOISMODEOFF;
 		serialPuts(fd,"streamoff\n\0");
-		cout << camGetLine(fd) << endl;
+		cout << "Call Ping" << endl;
+		pingCam(fd);
+		//cout << camGetLine(fd) << endl;
 	} else {
 		cout << "Stream already off" << endl;
 	}
@@ -75,9 +102,10 @@ void activateObjectDetect(int fd){
 	serialPuts(fd,"setmapping2 YUYV 320 240 30 JeVois ObjectDetect\n\0");
 	serialPuts(fd,"setpar serstyle Normal\n\0");
 	serialPuts(fd,"setpar serout USB\n\0");
+	serialPuts(fd,"setpar serlimit 1\n\0");
 	serialPuts(fd,"streamon\n\0");
-	cout << "messages sent" << endl;
-	printChunkCam(fd,4);
+	//cout << "messages sent" << endl;
+	printChunkCam(fd,5);
 	cout << "}" << endl;
 	streamOn = true;
 	return;
@@ -89,6 +117,7 @@ void activateBlockDetect(int fd){
 	cout << "Active White Detector{" << endl;
 	serialPuts(fd,"setmapping2 YUYV 320 240 30 ME WhiteTracker\n\0");
 	serialPuts(fd,"setpar serout USB\n\0");
+	//serialPuts(fd,"setpar serlimit 1\n\0");
 	serialPuts(fd,"streamon\n\0");
 	printChunkCam(fd,3);
 	cout << "}" << endl;
@@ -114,13 +143,15 @@ void setCameraSettings(int fd){
 string camGetLine(int fd){
 	string rtn;
 	char ch = '\0';
-	//cout << "line:{";
+	cout << "line:{";
 	while(ch != '\n'){
 		ch = (char)serialGetchar(fd);
-		//cout << ch;
-		rtn += ch;
+		cout << ch;
+		if(ch >= ' ' && ch <= 'z')
+			rtn += ch;
 	}
-	//cout << "}" << endl;
+	rtn += '\n';
+	cout << "}" << endl;
 	return rtn;
 }
 
@@ -135,6 +166,5 @@ void printChunkCam(int fd,int lines){
 	for(int i = 0; i < lines; i++){
 		cout << camGetLine(fd);
 	}
-	cout << endl;
 	return;
 }

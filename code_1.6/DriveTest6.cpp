@@ -64,12 +64,12 @@ int main(){
 	pair<double,double> blk2;
 	pair<double,double> blk3;
 	
-	blk1.first = -4;
-	blk1.second = 3;
-	blk2.first = 3;
-	blk2.second = -4;
-	blk3.first = 100;
-	blk3.second = 100;
+	blk1.first = -1;
+	blk1.second = -1;
+	blk2.first = 2;
+	blk2.second = 1;
+	blk3.first = -3;
+	blk3.second = 0;
 
 	locals[0] = blk1;
 	locals[1] = blk2;
@@ -80,9 +80,12 @@ int main(){
 	//sleep(2);
 	closeClaw();
 	//sleep(2);
-	liftClaw();
+	//liftClaw();
 	twistIn();
+	//twistOut();
 	cameraDown();
+	waitForGreen();
+	sleep(5);
 	/*char l = 'B';
 	openClaw();
 	sleep(2);	
@@ -101,19 +104,21 @@ int main(){
 		twistIn();
 		sleep(2);
 	}*/
-
-	for (int i = 0; i < numBlocks-1; i++){
+	cameraDrive();
+	for (int i = 0; i < numBlocks-0; i++){
 		//activateObjectDetect(fdJevois);
 		pair<double,double> result;
 		result = chooseDest(locals);
 		cout << "Next block @ (" << curBlockX << "," << curBlockY << ")" << endl;
+		cameraDrive();
 		lookForBlock(curBlockX*TICKSPERFOOT,curBlockY*TICKSPERFOOT);
 		halt();
+		findBlockInSquare();
 		cout << "Block " << i << " found" <<endl;
 		char letter = getBlock();
 		cout << "Block is " << letter << endl;
 		rotateToLoad(letter);
-		liftClaw();
+		//liftClaw();
 		twistIn();
 		sleep(1);
 

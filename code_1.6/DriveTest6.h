@@ -37,7 +37,7 @@
 #define MIN_SERVO	 		700
 #define	MAX_SERVO	 		2150
 #define CAMERAUP	 		1600
-#define CAMERADRIVE			1150
+#define CAMERADRIVE			1300
 #define CAMERADOWN	 		950
 #define TWISTIN 	 		554
 #define TWISTOUT 	 		2250
@@ -55,6 +55,9 @@
 #define RIGHTPUNCHERDOWN	600
 
 #define ARDUINORESETPIN		4
+#define FINISHLEDPIN		16
+#define GREENBUTTONPIN		5
+#define REDBUTTONPIN		12
 
 //TODO Define edges to [-4,3]
 #define BOARDEDGENORTH		8*TICKSPERFOOT
@@ -259,6 +262,10 @@ void punchersDown();
 void clockwiseSixth();
 void counterClockwiseSixth();
 
+void blinkLED();
+void waitForGreen();
+void stopOnRed(int pi, unsigned user_gpio, unsigned level, uint32_t tick);
+
 Adafruit_MotorHAT  hat (0x61,1600,-1,-1);
 Adafruit_MotorHAT  hat2(0x60,1600,-1,-1);
 
@@ -299,7 +306,7 @@ int checkEncoder(int stop){
 				numString[n] = '\0';
 				n--;
 				num = atoi(numString);
-				//cout << num << endl;
+				cout << num << endl;
 				n = 0;
 				ch = '0';
 				//TODO disable for pivot
@@ -322,7 +329,7 @@ int checkEncoder(int stop){
 				numString[n] = '\0';
 				n--;
 				num = atoi(numString);
-				//cout << num << endl;
+				cout << num << endl;
 				n = 0;
 				ch = '0';
 				//TODO disable for pivot
@@ -480,7 +487,7 @@ int strafeLeft(int distance){
 	cout << "Start = " << startPos << endl;
 	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
 	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
-	cout << "Stop = " << stopPos << endl;
+	cout << "Actual Stop = " << RobotPosition.curPos.arduino << endl;
 	cout << "End Forward" << endl;
 	
 	return 0;
@@ -570,7 +577,7 @@ int pivotLeft(int positions){
 	cout << "Start = " << startPos << endl;
 	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
 	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
-	cout << "Stop = " << stopPos << endl;
+	cout << "Acctual Stop = " << RobotPosition.curPos.arduino << endl;
 	//robotPosition.curPos.NS = startPos;
 	for (int i = 0; i < positions; i++)
 	{
@@ -610,7 +617,7 @@ int pivotRight(int positions){
 	cout << "Start = " << startPos << endl;
 	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
 	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
-	cout << "Stop = " << stopPos << endl;
+	cout << "Acctual Stop = " << RobotPosition.curPos.arduino << endl;
 	
 	for (int i = 0; i < positions; i++)
 	{
@@ -708,22 +715,25 @@ char getBlock(){
 	cout<< "I will now pick up the block" << endl;
 	//findBlockInSquare();
 	if (RobotPosition.getFacing()>1){
-		goForward(-.9*TICKSPERFOOT,(RobotPosition.getFacing()%2));
+		goForward(-.8*TICKSPERFOOT,(RobotPosition.getFacing()%2));
 	} else {
-		goForward(.9*TICKSPERFOOT,(RobotPosition.getFacing()%2));
+		goForward(.8*TICKSPERFOOT,(RobotPosition.getFacing()%2));
 	}
 
 	halt();
 	cameraDown();
 	//activateOCR(fdJevois);
 	//char letter = readBlock(fdJevois);
-	char letter;
-	cin >> letter;
+	activateObjectDetect(fdJevois);
+	char letter = readObject(fdJevois);
+	//camStreamOff(fdJevois);
+	//char letter;
+	//cin >> letter;
 	cameraUp();
-	twistOut();
-	openClaw();
-	lowerClaw();
-	closeClaw();
+	//twistOut();
+	//openClaw();
+	//lowerClaw();
+	//closeClaw();
 	sleep(1);
 		cout << "Block " << letter << " is mine!" << endl;
 	return letter;
@@ -746,8 +756,9 @@ void findBlockInSquare(){
 	//serial_close(pi,fdJevois);
 	int diff = 0;
 	do{
+		// Note to Adam: Do not change these signs -Adam
 		if (diff < 0){
-			cout << "Strafe Left to Block " << diff*1 << endl;
+			cout << "Strafe Left to Block " << -diff*1 << endl;
 			strafeLeft((int)(-diff*1));
 		} else if ( diff > 0) {
 			cout << "Strafe Right to Block " << -diff*1 << endl;
@@ -1479,11 +1490,35 @@ int initilizePigpiod(){
 	
 	set_mode(pi, LIFTTOPSWITCH, PI_INPUT);
 	set_mode(pi, LIFTBOTTOMSWITCH, PI_INPUT);
+	set_mode(pi, GREENBUTTONPIN, PI_INPUT);
+	set_mode(pi, REDBUTTONPIN, PI_INPUT);
 	set_mode(pi, ARDUINORESETPIN, PI_OUTPUT);
 	gpio_write(pi, ARDUINORESETPIN, 1);
+	set_mode(pi, FINISHLEDPIN, PI_OUTPUT);
+	gpio_write(pi, FINISHLEDPIN, 0);
 	set_pull_up_down(pi, LIFTTOPSWITCH, PI_PUD_DOWN);
 	set_pull_up_down(pi, LIFTBOTTOMSWITCH, PI_PUD_DOWN);
+	set_pull_up_down(pi, GREENBUTTONPIN, PI_PUD_DOWN);
+	set_pull_up_down(pi, REDBUTTONPIN, PI_PUD_DOWN);
+	
+	int c = callback(pi,REDBUTTONPIN,RISING_EDGE,stopOnRed);
+	cout << "Callback rtn is " << c << endl;
 	return pi;
+}
+
+void waitForGreen(){
+	cout << "Waiting for Green Button" << endl;
+	wait_for_edge(pi, GREENBUTTONPIN, FALLING_EDGE, 5000);
+	cout << "Green Pressed!" << endl;
+	cout << "Here we go!" << endl;
+	return;
+}
+
+void stopOnRed(int pi, unsigned user_gpio, unsigned level, uint32_t tick){
+	cout << "RED PRESSED!" << endl;
+	cout << "Stoping the program!" << endl;
+	endProgram();
+	return;
 }
 
 int halt(){
@@ -1497,14 +1532,25 @@ int halt(){
 	return 0;
 }
 
+void blinkLED(){
+	cout << "Blink" << endl;
+	//gpio_write(pi, FINISHLEDPIN, 1);
+	//sleep(5);
+	set_PWM_dutycycle(pi,FINISHLEDPIN, 200);
+	set_PWM_frequency(pi,FINISHLEDPIN, 1);
+	
+	return;
+}
+
 void endProgram(){
-	rebootCam(fdJevois);
+	blinkLED();
+	//rebootCam(fdJevois);
 	serialClose(fdArduino);
-	serialClose(fdJevois);
+	//serialClose(fdJevois);
 	gpio_write(pi, ARDUINORESETPIN, 0);	
 	usleep(5);
 	gpio_write(pi, ARDUINORESETPIN, 1);
-	pigpio_stop(pi);
+	//pigpio_stop(pi);
 	cout << "End of Program" << endl;
 	return;
 }

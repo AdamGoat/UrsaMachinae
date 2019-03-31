@@ -23,17 +23,15 @@ int main(){
 	
 	waitForGreen();
 	
-	
-	
 	findBlockInSquare();
 	
 	char letter = getBlock();
 	
-	//liftClaw();
-	//twistIn();
+	liftClaw();
+	twistIn();
 	rotateToLoad(letter);
 	sleep(2);
-	//openClaw();
+	openClaw();
 	
 	cameraDrive();
 	

@@ -34,13 +34,13 @@
 #define CAMERASERVOPIN		24
 #define	LIFTTOPSWITCH		21
 #define LIFTBOTTOMSWITCH	19
-#define MIN_SERVO	 		700
+#define MIN_SERVO	 		650
 #define	MAX_SERVO	 		2150
 #define CAMERAUP	 		1600
 #define CAMERADRIVE			1300
 #define CAMERADOWN	 		950
-#define TWISTIN 	 		554
-#define TWISTOUT 	 		2250
+#define TWISTIN 	 		545 //553
+#define TWISTOUT 	 		2300
 #define NSFACING	 		0
 #define EWFACING	 		1
 #define PIVOTTICKS	 		1125
@@ -57,7 +57,7 @@
 #define ARDUINORESETPIN		4
 #define FINISHLEDPIN		16
 #define GREENBUTTONPIN		5
-#define REDBUTTONPIN		12
+#define REDBUTTONPIN		6
 
 //TODO Define edges to [-4,3]
 #define BOARDEDGENORTH		8*TICKSPERFOOT
@@ -286,6 +286,9 @@ int curDestX;
 int curDestY;
 int numBlocks;
 bool turning;
+double motherX = 2.17;
+double motherY = 2.17;
+int motherFacing = 0;
 
 int checkEncoder(int stop){
 		char ch = '0';
@@ -306,15 +309,27 @@ int checkEncoder(int stop){
 				numString[n] = '\0';
 				n--;
 				num = atoi(numString);
-				cout << num << endl;
+				//cout << num << endl;
 				n = 0;
 				ch = '0';
 				//TODO disable for pivot
-				if(serial_data_available(pi,fdJevois) > 0 && jevoisMode == JEVOISMODEOBJ && !turning){
+				/*if(serial_data_available(pi,fdJevois) > 0 && jevoisMode == JEVOISMODEOBJ && !turning){
 					cout << camGetLine(fdJevois) << endl;
 					evasiveManeuvers(curDestX,curDestY);				
+				}*/
+				if(num%25==0&&jevoisMode==JEVOISMODEOBJ&&!turning){
+					if(pingCam(fdJevois) > 0 || msFound){
+						cout << "Mothership seen!" << endl;
+						if(motherX == motherY == 2.17){
+							cout << "MOTHERSHIP FOUND" << endl;
+							motherX = RobotPosition.curPos.EW;
+							motherY = RobotPosition.curPos.NS;
+							motherFacing = RobotPosition.curPos.facing;
+						}
+						msFound = false; 
+						evasiveManeuvers(curDestX,curDestY);
+					}					
 				}
-					
 			}
                }else{
 			num = 100000;
@@ -329,13 +344,26 @@ int checkEncoder(int stop){
 				numString[n] = '\0';
 				n--;
 				num = atoi(numString);
-				cout << num << endl;
+				//cout << num << endl;
 				n = 0;
 				ch = '0';
 				//TODO disable for pivot
-				if(serial_data_available(pi,fdJevois) > 0 && jevoisMode == JEVOISMODEOBJ && !turning){
+				/*if(serial_data_available(pi,fdJevois) > 0 && jevoisMode == JEVOISMODEOBJ && !turning){
 					cout << camGetLine(fdJevois) << endl;
 					evasiveManeuvers(curDestX,curDestY);				
+				}*/
+				if(num%25==0&&jevoisMode==JEVOISMODEOBJ&&!turning){
+					if(pingCam(fdJevois) > 0 || msFound){
+						cout << "Mothership seen!" << endl;
+						if(motherX == motherY == 2.17){
+							cout << "MOTHERSHIP FOUND" << endl;
+							motherX = RobotPosition.curPos.EW;
+							motherY = RobotPosition.curPos.NS;
+							motherFacing = RobotPosition.curPos.facing;
+						} 
+						msFound = false;
+						evasiveManeuvers(curDestX,curDestY);
+					}					
 				}
 					
 			}
@@ -455,14 +483,14 @@ int strafeLeft(int distance){
 	turning = true;
 	
 	int startPos,stopPos;
-	if (RobotPosition.getFacing()%2 == 0){ //Fliped for strafing
+	/*if (RobotPosition.getFacing()%2 == 0){ //Fliped for strafing
 		cout << "Moving NS" << endl;
 		startPos = RobotPosition.curPos.NS;
 	} else {
 		cout << "Moving EW" << endl;
 		startPos = RobotPosition.curPos.EW;
-	}
-	startPos += RobotPosition.curPos.arduino;
+	}*/
+	startPos = RobotPosition.curPos.arduino;
 	
 	stopPos = startPos + (distance);
 	cout << "Start = " << startPos << endl;
@@ -730,10 +758,10 @@ char getBlock(){
 	//char letter;
 	//cin >> letter;
 	cameraUp();
-	//twistOut();
-	//openClaw();
-	//lowerClaw();
-	//closeClaw();
+	twistOut();
+	openClaw();
+	lowerClaw();
+	closeClaw();
 	sleep(1);
 		cout << "Block " << letter << " is mine!" << endl;
 	return letter;
@@ -743,6 +771,7 @@ int findBlock(int fd){
 	//serialTrash(fd);
 	//fd = initilizeJevoisSerial();
 	activateBlockDetect(fd);
+	cout << "Block Detect Activated" << endl;
 	string num = camGetLine(fd);
 	cout << "Block at " << num << endl;
 	camStreamOff(fd);
@@ -855,21 +884,23 @@ int boardMothership(char letter){
 	if(letter == 'C')
 	{
 		// strafe left
-		stop = RobotPosition.curPos.EW + 2000;	//placeholder	
+		/*stop = RobotPosition.curPos.EW + 2000;	//placeholder	
 		frontLeft.run(BACKWARD);
 		frontRight.run(FORWARD);
 		backLeft.run(FORWARD);
 		backRight.run(BACKWARD);
-		checkEncoder(stop);
+		checkEncoder(stop);*/
+		strafeLeft(2000);
 		halt();
 		
 		// drive forward
-		stop = RobotPosition.curPos.EW + 2500;	//placeholder	
+		goForward(2500,RobotPosition.getFacing()%2);
+		/*stop = RobotPosition.curPos.EW + 2500;	//placeholder	
 		frontLeft.run(FORWARD);	
 		frontRight.run(FORWARD);
 		backLeft.run(FORWARD);
 		backRight.run(FORWARD);
-		checkEncoder(stop);
+		checkEncoder(stop);*/
 		halt();
 		
 		// face ramp
@@ -879,21 +910,23 @@ int boardMothership(char letter){
 	else if(letter == 'D')
 	{
 		// strafe right
-		stop = RobotPosition.curPos.EW + 2000;	//placeholder	
+		/*stop = RobotPosition.curPos.EW + 2000;	//placeholder	
 		frontLeft.run(FORWARD);
 		frontRight.run(BACKWARD);
 		backLeft.run(BACKWARD);
 		backRight.run(FORWARD);
-		checkEncoder(stop);
+		checkEncoder(stop);*/+
+		strafeRight(2000);
 		halt();
 		
 		// drive forward
-		stop = RobotPosition.curPos.EW + 2500;	//placeholder		
+		/*stop = RobotPosition.curPos.EW + 2500;	//placeholder		
 		frontLeft.run(FORWARD);	
 		frontRight.run(FORWARD);
 		backLeft.run(FORWARD);
 		backRight.run(FORWARD);
-		checkEncoder(stop);
+		checkEncoder(stop);*/
+		goForward(2500,RobotPosition.getFacing()%2);
 		halt();
 		
 		// face ramp
@@ -905,12 +938,13 @@ int boardMothership(char letter){
 	system("python StepperTwelfthCCW.py");
 	
 	// drive up ramp
-	stop = RobotPosition.curPos.EW + 3000;		//placeholder	
+	/*stop = RobotPosition.curPos.EW + 3000;		//placeholder	
 	frontLeft.run(FORWARD);	
 	frontRight.run(FORWARD);
 	backLeft.run(FORWARD);
 	backRight.run(FORWARD);
-	checkEncoder(stop);
+	checkEncoder(stop);*/
+	goForward(3000,RobotPosition.getFacing()%2);
 	halt();
 	
 	// dump blocks
@@ -922,12 +956,13 @@ int boardMothership(char letter){
 	system("python StepperCCW.py");
 	
 	// drive forward to line up with B and E
-	stop = RobotPosition.curPos.EW + 1500;		//placeholder	
+	/*stop = RobotPosition.curPos.EW + 1500;		//placeholder	
 	frontLeft.run(FORWARD);	
 	frontRight.run(FORWARD);
 	backLeft.run(FORWARD);
 	backRight.run(FORWARD);
-	checkEncoder(stop);
+	checkEncoder(stop);*/
+	goForward(300,RobotPosition.getFacing()%2);
 	halt();
 	
 	// dump blocks
@@ -939,12 +974,13 @@ int boardMothership(char letter){
 	system("python StepperCCW.py");
 	
 	// drive forward to line up with A and F
-	stop = RobotPosition.curPos.EW + 1500;		//placeholder	
+	/*stop = RobotPosition.curPos.EW + 1500;		//placeholder	
 	frontLeft.run(FORWARD);	
 	frontRight.run(FORWARD);
 	backLeft.run(FORWARD);
 	backRight.run(FORWARD);
-	checkEncoder(stop);
+	checkEncoder(stop);*/
+	goForward(300,RobotPosition.getFacing()%2);
 	halt();
 	
 	// dump blocks
@@ -952,8 +988,6 @@ int boardMothership(char letter){
 	sleep(1);
 	punchersDown();
 	usleep(500000);
-	
-	// finishing light
 	
 	// self destruct
 	
@@ -1510,6 +1544,7 @@ void waitForGreen(){
 	cout << "Waiting for Green Button" << endl;
 	wait_for_edge(pi, GREENBUTTONPIN, FALLING_EDGE, 5000);
 	cout << "Green Pressed!" << endl;
+	sleep(5);
 	cout << "Here we go!" << endl;
 	return;
 }
@@ -1518,6 +1553,7 @@ void stopOnRed(int pi, unsigned user_gpio, unsigned level, uint32_t tick){
 	cout << "RED PRESSED!" << endl;
 	cout << "Stoping the program!" << endl;
 	endProgram();
+	exit(5);
 	return;
 }
 
@@ -1544,12 +1580,14 @@ void blinkLED(){
 
 void endProgram(){
 	blinkLED();
-	//rebootCam(fdJevois);
+	rebootCam(fdJevois);
 	serialClose(fdArduino);
-	//serialClose(fdJevois);
+	serialClose(fdJevois);
+	cout << "Serial closed" << endl;
 	gpio_write(pi, ARDUINORESETPIN, 0);	
 	usleep(5);
 	gpio_write(pi, ARDUINORESETPIN, 1);
+	cout << "Arduino Restarted" << endl;
 	//pigpio_stop(pi);
 	cout << "End of Program" << endl;
 	return;
@@ -1574,6 +1612,6 @@ void ctrl_c_handler(int s){
 	gpio_write(pi, ARDUINORESETPIN, 0);
 	usleep(5);
 	gpio_write(pi, ARDUINORESETPIN, 1);
-	pigpio_stop(pi);
+	//pigpio_stop(pi);
 	exit(1);
 }

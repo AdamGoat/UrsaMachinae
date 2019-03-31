@@ -8,6 +8,7 @@
 
 int jevoisMode;
 bool streamOn;
+bool msFound;
 
 using namespace std;
 
@@ -20,14 +21,25 @@ void printChunkCam(int fd, int lines);
 void camStreamOff(int fd);
 void rebootCam(int fd);
 char readBlock(int fd);
+int pingCam(int fd);
+char readObject(int fd);
+char readObject(string line);
 
-void pingCam(int fd){
+int pingCam(int fd){
+	int amt = 0;
 	cout << "Ping" << endl;
 	serialPuts(fd,"ping\n\0");
 	string line = camGetLine(fd);
 	cout << line << endl;
 	//cout << "cmp " <<line.find("ALIVE") << endl;
 	while(line.find("ALIVE") != 0){
+		amt++;
+		if(line.find("ms") != string::npos)
+		{
+			cout << "Mothership detected" << endl;
+			msFound = true;
+			readObject(line);
+		}			
 		line = camGetLine(fd);
 		cout << line;
 		//cout << "cmp " <<line.find("ALIVE") << endl;
@@ -35,9 +47,15 @@ void pingCam(int fd){
 	cout << line;
 	cout << "End Ping" << endl;
 	cout << camGetLine(fd);
-	return;
+	return amt;
 }
 
+char readObject(string line){
+	cout << "Reading Object String" << endl;
+	cout << "Object Info: " << line << endl;
+	char obj = (line.c_str())[line.find_first_of(' ')+1];
+	return obj;
+}
 
 char readObject(int fd){
 	cout << "Reading Object" << endl;
@@ -143,15 +161,16 @@ void setCameraSettings(int fd){
 string camGetLine(int fd){
 	string rtn;
 	char ch = '\0';
-	cout << "line:{";
+	//cout << "line:{";
 	while(ch != '\n'){
 		ch = (char)serialGetchar(fd);
-		cout << ch;
-		if(ch >= ' ' && ch <= 'z')
+		if(ch >= ' ' && ch <= 'z'){
 			rtn += ch;
+			//cout << ch;
+		}
 	}
 	rtn += '\n';
-	cout << "}" << endl;
+	//cout << "}" << endl;
 	return rtn;
 }
 

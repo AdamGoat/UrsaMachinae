@@ -64,8 +64,8 @@ int main(){
 	pair<double,double> blk2;
 	pair<double,double> blk3;
 	
-	blk1.first = -1;
-	blk1.second = -1;
+	blk1.first = 0;
+	blk1.second = -4;
 	blk2.first = 2;
 	blk2.second = 1;
 	blk3.first = -3;
@@ -78,6 +78,7 @@ int main(){
 	numBlocks = 3;
 	//openClaw();
 	//sleep(2);
+	//cameraUp();
 	closeClaw();
 	//sleep(2);
 	//liftClaw();
@@ -85,25 +86,7 @@ int main(){
 	//twistOut();
 	cameraDown();
 	waitForGreen();
-	sleep(5);
-	/*char l = 'B';
-	openClaw();
-	sleep(2);	
-	while (true){
-		twistOut();
-		sleep(2);
-		lowerClaw();
-		sleep(2);
-		closeClaw();
-		sleep(2);
-		liftClaw();
-		sleep(2);
-		rotateToLoad(l);
-		l++;
-		sleep(2);
-		twistIn();
-		sleep(2);
-	}*/
+
 	cameraDrive();
 	for (int i = 0; i < numBlocks-0; i++){
 		//activateObjectDetect(fdJevois);
@@ -118,7 +101,7 @@ int main(){
 		char letter = getBlock();
 		cout << "Block is " << letter << endl;
 		rotateToLoad(letter);
-		//liftClaw();
+		liftClaw();
 		twistIn();
 		sleep(1);
 
@@ -127,6 +110,10 @@ int main(){
 	}
 	cout << "ALL BLOCKS FOUND!" << endl;
 	halt();
+	
+	lookForBlock(motherX*TICKSPERFOOT,motherY*TICKSPERFOOT);
+	turnToFace(motherFacing);
+	boardMothership('C');
 	
 	/*cout << "Dump Blocks" << endl;
 		twistIn();

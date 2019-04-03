@@ -13,7 +13,7 @@ int main(){
 	
 	initilizePigpiod();	
 	initilizeArduinoSerial();
-	initilizeJevoisSerial();	
+	//initilizeJevoisSerial();	
 	
 	closeClaw();
 	liftClaw();

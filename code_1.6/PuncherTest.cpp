@@ -1,4 +1,4 @@
-#include "DriveTest5.h"
+#include "DriveTest6.h"
 
 using namespace std;
 
@@ -42,16 +42,17 @@ int main(){
 	initilizePigpiod();	
 	
 	// get C and D on the right and left sides of the robot
-	rotateToLoad('E');
+	/*rotateToLoad('E');
 	system("python StepperTwelfthCCW.py");
 	
 	sleep(0.5);
-	// dump blocks 1
+	
+	*/// dump blocks 1
 	punchersUp();
 	sleep(3);
 	punchersDown();
 	usleep(500000);
-	
+	/*
 	counterClockwiseSixth();
 	
 	sleep(0.5);
@@ -69,7 +70,7 @@ int main(){
 	sleep(3);
 	punchersDown();
 	usleep(500000);
-
+*/
 	return 0;
 }
 

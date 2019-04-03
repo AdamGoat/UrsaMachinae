@@ -6,6 +6,8 @@ all:
 #	g++ -o PickUpBlock PickUpBlock.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
 #	g++ -o DriveForwardAndBack DriveForwardAndBack.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
 	g++ -o serialTest serialTest.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
-#	g++ -o LazyMorganTest LazyMorganTest.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
+	g++ -o LazyMorganTest LazyMorganTest.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
 	g++ -o DriveTest6 DriveTest6.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
 #	g++ -o PuncherTest PuncherTest.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
+	g++ -o MothershipTest Mothership.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
+#	g++ -o setDriveCam setDriveCam.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g

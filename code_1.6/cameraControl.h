@@ -24,6 +24,7 @@ char readBlock(int fd);
 int pingCam(int fd);
 char readObject(int fd);
 char readObject(string line);
+string readMsObject(int fd);
 
 int pingCam(int fd){
 	int amt = 0;
@@ -65,6 +66,24 @@ char readObject(int fd){
 	char obj = (line.c_str())[line.find_first_of(' ')+1];
 	pingCam(fd);
 	return obj;
+}
+
+string readMsObject(int fd){
+	string rtn;
+	cout << "Reading MS Object" << endl;
+	string line = camGetLine(fd);
+	camStreamOff(fd);
+	cout << "Object Info: " << line << endl;
+	char obj = (line.c_str())[line.find_first_of(' ')+1];
+	pingCam(fd);
+	if(obj != 'm'){
+		rtn = "ERR";
+		return rtn;
+	}
+	int len = line.find(".jpg") - (line.find_first_of('_') + 1);
+	rtn = line.substr(line.find_first_of(' ')+4,len);
+	cout << "Derived Info: " << rtn << endl;
+	return rtn;
 }
 
 char readBlock(int fd){

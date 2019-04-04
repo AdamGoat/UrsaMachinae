@@ -16,20 +16,40 @@ int main(){
 	RobotPosition.curPos.NS = startY*TICKSPERFOOT;
 	RobotPosition.curPos.EW	= startX*TICKSPERFOOT;
 	
-	//openClaw();
+	openClaw();
 	//sleep(2);
 	//cameraUp();
-	closeClaw();
+	//closeClaw();
 	//sleep(2);
 	//liftClaw();
 	twistIn();
 	//twistOut();
 	cameraDown();
+
+	goForward(1.5*TICKSPERFOOT);
 	punchersDown();
 	usleep(500000);
 	servoOff(LEFTPUNCHERPIN);
 	servoOff(RIGHTPUNCHERPIN);
-	waitForGreen();
+	rotateToLoad('A');
+	system("python StepperTwelfthCW.py");
+	//CD
+	punchersUp();
+	usleep(1000000);
+	punchersDown();
+	goForward(.25*TICKSPERFOOT);
+	counterClockwiseSixth();
+	//EB
+	punchersUp();
+	usleep(1000000);
+	punchersDown();
+	goForward(.25*TICKSPERFOOT);
+	//stepperCCWExtra();
+	system("python StepperCCWExtra.py");
+	//AF
+	punchersUp();
+	usleep(500000);
+	punchersDown();
 
 	cameraDrive();
 }

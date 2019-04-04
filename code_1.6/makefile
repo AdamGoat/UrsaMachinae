@@ -11,3 +11,4 @@ all:
 #	g++ -o PuncherTest PuncherTest.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
 	g++ -o MothershipTest Mothership.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
 #	g++ -o setDriveCam setDriveCam.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g
+	g++ -o StrafeLeftAndRight StrafeLeftAndRight.cpp AdafruitDCMotorHAT.a -lwiringPi -lpthread -lcrypt -lpigpio -lrt -lpigpiod_if2 -g

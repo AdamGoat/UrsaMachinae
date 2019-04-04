@@ -64,22 +64,22 @@ int main(){
 	pair<double,double> blk2;
 	pair<double,double> blk3;
 	
-	blk1.first = 0;
-	blk1.second = -4;
-	blk2.first = 2;
-	blk2.second = 1;
-	blk3.first = -3;
-	blk3.second = 0;
+	blk1.first = -1;
+	blk1.second = 1;
+	blk2.first = -3;
+	blk2.second = 0;
+	blk3.first = 2;
+	blk3.second = -2;
 
 	locals[0] = blk1;
 	locals[1] = blk2;
 	locals[2] = blk3;
 
 	numBlocks = 3;
-	//openClaw();
+	openClaw();
 	//sleep(2);
 	//cameraUp();
-	closeClaw();
+	//closeClaw();
 	//sleep(2);
 	//liftClaw();
 	twistIn();

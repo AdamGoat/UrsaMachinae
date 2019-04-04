@@ -11,7 +11,7 @@ int main(){
 	int turned = 0; 
 	//while(turned < blockNum)
 //	{
-		char letter;
+	/*	char letter;
 		cameraUp();
 		punchersDown();
 		twistIn();
@@ -37,16 +37,16 @@ int main(){
 		usleep(1000000);
 		set_servo_pulsewidth(pi,TWISTSERVOPIN,0);
 		set_servo_pulsewidth(pi,GRIPPERSERVOPIN,0);
-		turned ++;
+		turned ++;*/
 	//}
 
-	/*sleep(1);
+	//sleep(1);
 	cout << "Entering Punchers" << endl;
 	punchersDown();
 	punchersUp();
 	sleep(1);
 	punchersDown();
-	*/
+	
 	//endProgram();
 
 	return 0;

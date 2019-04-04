@@ -42,10 +42,10 @@ int pingCam(int fd){
 			readObject(line);
 		}			
 		line = camGetLine(fd);
-		cout << line;
+		//cout << line;
 		//cout << "cmp " <<line.find("ALIVE") << endl;
 	}
-	cout << line;
+	//cout << line;
 	cout << "End Ping" << endl;
 	cout << camGetLine(fd);
 	return amt;
@@ -178,6 +178,7 @@ void setCameraSettings(int fd){
 }
 
 string camGetLine(int fd){
+	//cout << "start getLine" << endl;
 	string rtn;
 	char ch = '\0';
 	//cout << "line:{";

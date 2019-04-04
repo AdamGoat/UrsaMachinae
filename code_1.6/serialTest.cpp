@@ -13,7 +13,7 @@ int main(){
 	
 	initilizePigpiod();	
 	initilizeArduinoSerial();
-	//initilizeJevoisSerial();	
+	initilizeJevoisSerial();	
 	
 	closeClaw();
 	liftClaw();
@@ -23,8 +23,9 @@ int main(){
 	
 	waitForGreen();
 	
-	findBlockInSquare();
-	
+	//findBlockInSquare();
+	//activateOCR(fdJevois);	
+	camStreamOff(fdJevois);
 	char letter = getBlock();
 	
 	liftClaw();

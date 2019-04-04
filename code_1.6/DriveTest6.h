@@ -43,16 +43,17 @@
 #define TWISTOUT 	 		2350
 #define NSFACING	 		0
 #define EWFACING	 		1
-#define PIVOTTICKS	 		1125
+#define PIVOTTICKS	 		1123 //1125
 #define TICKSPERFOOT 		1143
+#define STRAFETICKSPERFOOT		1205
 #define	DOUGETICKS	 		TICKSPERFOOT/2
 
 #define RIGHTPUNCHERPIN		27
 #define LEFTPUNCHERPIN		22
 #define RIGHTPUNCHERUP		1790  //1825 for center //1800 going up //1790
 #define RIGHTPUNCHERDOWN	1540	//Dont go lower than this will get stuck
-#define LEFTPUNCHERUP		1520
-#define LEFTPUNCHERDOWN	    1800
+#define LEFTPUNCHERUP		1540
+#define LEFTPUNCHERDOWN	    1790
 
 #define ARDUINORESETPIN		4
 #define FINISHLEDPIN		16
@@ -76,7 +77,7 @@ struct pos{
 	double EW;
 	//Directions facing;
 	int facing;
-	double ang;
+	int ang;
 	int claw;
 	int lift;
 	int camera;
@@ -119,8 +120,48 @@ class position{
 	}
 	pos changeAng(double change){
 		curPos.ang += change;
+		if(abs(curPos.ang) >= 360){
+			curPos.ang = curPos.ang % 360;
+		}
+		if(curPos.ang < 0){
+			curPos.ang += 360;
+		}
+		cout << "New angle = " << curPos.ang << endl;
 		return curPos;
 	}
+	int getAng(){
+		return curPos.ang;
+	}
+	
+	pos changePosition(int ticks, int ang){
+		cout << "Change Position ticks: " << ticks << " Degree ang: " << ang << endl;
+		// N = 0
+		// E = 90
+		// S = 180
+		// W = 270
+		
+		// ang = direction of travel
+		double rad = ang*M_PI/180; //cos and sin are in radian
+		cout << "Change Position ticks: " << ticks << " Radian ang: " << rad << endl;
+		if ( ang >= 45 && ang < 135){ // ~East
+		   	moveNS(round(ticks*cos(rad)));
+			moveEW(round(ticks*sin(rad)));
+		} else if (ang >= 135 && ang < 225){ // ~South
+		   	moveNS(round(ticks*cos(rad)));
+			moveEW(round(ticks*sin(rad)));
+		} else if (ang >= 225 && ang < 315){ // ~West
+			moveNS(round(ticks*cos(rad)));
+			cout << "move NS: " << round(ticks*cos(rad)) << endl;
+			moveEW(round(ticks*sin(rad)));
+			cout << "move EW: " << round(ticks*sin(rad)) << endl;
+		} else { // ~North
+			moveNS(round(ticks*cos(rad)));
+			moveEW(round(ticks*sin(rad)));
+		}
+				
+		return curPos;
+	} 
+	
 	pos changeFacingCW(){
 		++(curPos.facing) %= 4;
 		return curPos;
@@ -218,7 +259,7 @@ class position{
 	}
 };
 
-int goForward(int distance,int facing);
+int goForward(int distance/*,int facing*/);
 int strafeLeft(int distance);
 int strafeRight(int distance);
 int pivotLeft(int positions,int degrees);
@@ -378,7 +419,8 @@ int checkEncoder(int stop){
 		return num;
 }
 
-int goForward(int distance,int facing){ //facing = 0 NS, 1 EW
+int goForward(int distance/*,int facing*/){ //facing = 0 NS, 1 EW
+	distance = abs(distance);
 	cout << "Drive Forward: " << distance/TICKSPERFOOT << endl;
 	turning = false;
 	//All motors forward
@@ -387,7 +429,7 @@ int goForward(int distance,int facing){ //facing = 0 NS, 1 EW
 	backLeft.run(FORWARD);
 	backRight.run(FORWARD);
 	
-	int startPos,stopPos,initVal;
+	int startPos,stopPos;
 	startPos = RobotPosition.curPos.arduino;
 	
 	frontLeft.setSpeed(50);
@@ -396,12 +438,6 @@ int goForward(int distance,int facing){ //facing = 0 NS, 1 EW
 	backRight.setSpeed(50);
 
 	usleep(40000);
-	
-	if (facing == 0){
-		initVal = RobotPosition.curPos.NS;
-	} else {
-		initVal = RobotPosition.curPos.EW;
-	}
 	
 	//distance = abs(distance);
 	stopPos = startPos + abs(distance);
@@ -422,13 +458,18 @@ int goForward(int distance,int facing){ //facing = 0 NS, 1 EW
 	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
 	cout << "Stop = " << stopPos << endl;
 	
-	if (facing == 0){
+	/*if (facing == 0){
 		cout << "North South" << endl;
 		RobotPosition.curPos.NS += (distance/abs(distance))* (checkEncoder(stopPos)- startPos);
 	} else {
 		cout << "East West" <<endl;
 		RobotPosition.curPos.EW += (distance/abs(distance))* (checkEncoder(stopPos)- startPos);
-	}
+	}*/
+	
+	checkEncoder(stopPos);
+	
+	RobotPosition.changePosition(distance,RobotPosition.getAng());
+	
 	//halt();
 	cout << "Start = " << startPos << endl;
 	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
@@ -488,13 +529,18 @@ int goBackward(int distance,int facing){ //facing = 0 NS, 1 EW
 	
 	//TODO: Update postition correctly
 	
-	if (facing == 0){
+	/*if (facing == 0){
 		cout << "North South" << endl;
 		RobotPosition.curPos.NS += (distance/abs(distance))* (checkEncoder(stopPos)- startPos);
 	} else {
 		cout << "East West" <<endl;
 		RobotPosition.curPos.EW += (distance/abs(distance))* (checkEncoder(stopPos)- startPos);
-	}
+	}*/
+	
+	checkEncoder(stopPos);
+	
+	RobotPosition.changePosition(distance,(RobotPosition.getAng() + 180) % 360);
+	
 	//halt();
 	cout << "Start = " << startPos << endl;
 	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
@@ -504,7 +550,7 @@ int goBackward(int distance,int facing){ //facing = 0 NS, 1 EW
 	cout << "(" << RobotPosition.curPos.EW/TICKSPERFOOT << "," << RobotPosition.curPos.NS/TICKSPERFOOT << ")" << endl;
 	halt();
 	usleep(1000000);
-	cout << "End Forward" << endl;
+	cout << "End Backward" << endl;
 	return 0;
 }
 
@@ -576,19 +622,24 @@ int strafeLeft(int distance){
 	backLeft.setSpeed(STRAFESPEED);
 	backRight.setSpeed(STRAFESPEED);
 	
-	if (RobotPosition.getFacing()%2 == 0){
+	/*if (RobotPosition.getFacing()%2 == 0){
 		cout << "North South" << endl;
 		RobotPosition.curPos.NS += checkEncoder(stopPos) - startPos;
 	} else {
 		cout << "East West" <<endl;
 		RobotPosition.curPos.EW += checkEncoder(stopPos) - startPos;
-	}
+	}*/
+	
+	checkEncoder(stopPos);
+	halt();
+	RobotPosition.changePosition((TICKSPERFOOT/STRAFETICKSPERFOOT)*distance,(RobotPosition.getAng() + 270) % 360);
 	
 	cout << "Start = " << startPos << endl;
 	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
 	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
 	cout << "Actual Stop = " << RobotPosition.curPos.arduino << endl;
-	cout << "End Forward" << endl;
+	cout << "(" << RobotPosition.curPos.EW/TICKSPERFOOT << "," << RobotPosition.curPos.NS/TICKSPERFOOT << ")" << endl;
+	cout << "End Strafe Left" << endl;
 	
 	return 0;
 }
@@ -613,7 +664,7 @@ int strafeRight(int distance){
 	}*/
 	startPos = RobotPosition.curPos.arduino;
 	
-	stopPos = startPos + (distance) /*+ 50*/;
+	stopPos = startPos - (distance) /*+ 50*/;
 	cout << "Start = " << startPos << endl;
 	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
 	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
@@ -625,19 +676,24 @@ int strafeRight(int distance){
 	backLeft.setSpeed(STRAFESPEED);
 	backRight.setSpeed(STRAFESPEED);
 	
-	if (RobotPosition.getFacing()%2 == 0){
+	/*if (RobotPosition.getFacing()%2 == 0){
 		cout << "North South" << endl;
 		RobotPosition.curPos.NS += checkEncoder(stopPos) - startPos;
 	} else {
 		cout << "East West" <<endl;
 		RobotPosition.curPos.EW += checkEncoder(stopPos) - startPos;
-	}
+	}*/
+	
+	checkEncoder(stopPos);
+	halt();
+	RobotPosition.changePosition(distance,((TICKSPERFOOT/STRAFETICKSPERFOOT)*RobotPosition.getAng() + 90) % 360);
 	
 	cout << "Start = " << startPos << endl;
 	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
 	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
 	cout << "Stop = " << stopPos << endl;
-	cout << "End Forward" << endl;
+	cout << "(" << RobotPosition.curPos.EW/TICKSPERFOOT << "," << RobotPosition.curPos.NS/TICKSPERFOOT << ")" << endl;
+	cout << "End Strafe Right" << endl;
 	
 	return 0;
 }
@@ -679,10 +735,14 @@ int pivotLeft(int positions, int degrees = 90){
 	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
 	cout << "Acctual Stop = " << RobotPosition.curPos.arduino << endl;
 	//robotPosition.curPos.NS = startPos;
-	for (int i = 0; i < positions; i++)
+	/*for (int i = 0; i < positions; i++)
 	{
 		RobotPosition.changeFacingCCW();
-	}
+	}*/
+	
+	RobotPosition.changeAng(-(degrees*positions));
+	cout << "(" << RobotPosition.curPos.EW/TICKSPERFOOT << "," << RobotPosition.curPos.NS/TICKSPERFOOT << ")" << endl;
+	cout << "End Pivot Left" << endl;
 	return 0;
 }
 
@@ -719,10 +779,12 @@ int pivotRight(int positions, int degrees = 90){
 	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
 	cout << "Acctual Stop = " << RobotPosition.curPos.arduino << endl;
 	
-	for (int i = 0; i < positions; i++)
+	/*for (int i = 0; i < positions; i++)
 	{
 		RobotPosition.changeFacingCW();
-	}
+	}*/
+	RobotPosition.changeAng((degrees*positions));
+	cout << "(" << RobotPosition.curPos.EW/TICKSPERFOOT << "," << RobotPosition.curPos.NS/TICKSPERFOOT << ")" << endl;
 	cout << "End Pivot Right" << endl;
 	return 0;
 }
@@ -815,9 +877,9 @@ char getBlock(){
 	cout<< "I will now pick up the block" << endl;
 	//findBlockInSquare();
 	if (RobotPosition.getFacing()>1){
-		goForward(-.8*TICKSPERFOOT,(RobotPosition.getFacing()%2));
+		goForward(-.8*TICKSPERFOOT);
 	} else {
-		goForward(.8*TICKSPERFOOT,(RobotPosition.getFacing()%2));
+		goForward(.8*TICKSPERFOOT);
 	}
 
 	halt();
@@ -861,9 +923,9 @@ void findBlockInSquare(){
 		if (diff < 0){
 			cout << "Strafe Left to Block " << -diff*1 << endl;
 			strafeLeft((int)(-diff*1));
-		} else if ( diff > 0) {
-			cout << "Strafe Right to Block " << -diff*1 << endl;
-			strafeRight((int)(-diff*1));
+		} else if ( diff > 0)  { //I didn't listen -Adam
+			cout << "Strafe Right to Block " << diff*1 << endl;
+			strafeRight((int)(diff*1));
 		} 
 		halt();
 		diff = findBlock(fdJevois);
@@ -901,7 +963,7 @@ int turnToFace(int direction){
 		return -1;
 	}
 	// Pivot robot
-	if(RobotPosition.curPos.facing != direction)
+	/*if(RobotPosition.curPos.facing != direction)
 	{
 		if(abs(RobotPosition.curPos.facing - direction)==2)
 			pivotRight(2);
@@ -909,44 +971,70 @@ int turnToFace(int direction){
 			pivotRight(1);
 		else
 			pivotLeft(1);
+	}*/
+
+	if(RobotPosition.getAng() != 90*direction){
+		int a,b,c,det;
+		a = direction * 90 - RobotPosition.getAng();
+		b = direction * 90 - RobotPosition.getAng() + 360;
+		c = direction * 90 - RobotPosition.getAng() - 360;
+
+		if (abs(a)<abs(b) && abs(a)<abs(c))
+			det = a;
+		else if (abs(b)<abs(a) && abs(b)<abs(c))
+			det = b;
+		else 
+			det = c;
+
+		if(det >= 0){
+			cout << "Turn " << det << " Right to " << direction*90 << endl; 
+			pivotRight(1,det);
+		} else {
+			cout << "Turn " << det << " Left to " << direction*90 << endl; 
+			pivotLeft(1,-det);
+		}
 	}
+
 	return 0;
 }
 
 // Dillon 3/18 and 3/19 and probably other dates too
 int goToPointNS(int Xdest, int Ydest){
+	cout << "Go to point NS:("<< Xdest/TICKSPERFOOT << "," << Ydest/TICKSPERFOOT << ")" << endl;
 	curDestX = Xdest;
 	curDestY = Ydest;
 	// NS
-	if(Ydest != RobotPosition.curPos.NS)
+	if(Ydest != (int)RobotPosition.curPos.NS)
 	{
 		turnToFace(2*(Ydest<RobotPosition.curPos.NS));
-		goForward(Ydest-RobotPosition.curPos.NS, 0);
+		goForward(Ydest-RobotPosition.curPos.NS);
 	}
 	// EW
-	if(Xdest != RobotPosition.curPos.EW)
+	if(Xdest != (int)RobotPosition.curPos.EW)
 	{
+		cout << "change EW in goToPointNS" << endl;
 		turnToFace(1+2*(Xdest<RobotPosition.curPos.EW));
-		goForward(Xdest-RobotPosition.curPos.EW, 1);
+		goForward(Xdest-RobotPosition.curPos.EW);
 	}
 	return 0;
 }
 
 int goToPointEW(int Xdest, int Ydest){
+	cout << "Go to point EW:("<< Xdest/TICKSPERFOOT << "," << Ydest/TICKSPERFOOT << ")" << endl;
 	curDestX = Xdest;
 	curDestY = Ydest;
 	// EW
-	if(Xdest != RobotPosition.curPos.EW)
+	if(Xdest != (int)RobotPosition.curPos.EW)
 	{
 		turnToFace(1+2*(Xdest<RobotPosition.curPos.EW));
-		goForward(Xdest-RobotPosition.curPos.EW, 1);
+		goForward(Xdest-RobotPosition.curPos.EW);
 	}
 	
 	// NS
-	if(Ydest != RobotPosition.curPos.NS)
+	if(Ydest != (int)RobotPosition.curPos.NS)
 	{
 		turnToFace(2*(Ydest<RobotPosition.curPos.NS));
-		goForward(Ydest-RobotPosition.curPos.NS, 0);
+		goForward(Ydest-RobotPosition.curPos.NS);
 	}
 	return 0;
 }
@@ -970,13 +1058,13 @@ char examineMothership(){
 		pivotRight(1,ang);
 		switch (ang){
 			case 15:
-				strafeLeft((7.0/12.0)*TICKSPERFOOT);
+				strafeLeft((7.0/12.0)*STRAFETICKSPERFOOT);
 				break;
 			case 30:
-				strafeLeft((9.0/12.0)*TICKSPERFOOT);
+				strafeLeft((9.0/12.0)*STRAFETICKSPERFOOT);
 				break;
 			case 45:
-				strafeLeft((14.0/12.0)*TICKSPERFOOT);
+				strafeLeft((14.0/12.0)*STRAFETICKSPERFOOT);
 				break;
 		}
 		halt();
@@ -984,28 +1072,28 @@ char examineMothership(){
 		pivotLeft(1,ang);
 		switch (ang){
 			case 15:
-				strafeRight((7.0/12.0)*TICKSPERFOOT);
+				strafeRight((7.0/12.0)*STRAFETICKSPERFOOT);
 				break;
 			case 30:
-				strafeRight((9.0/12.0)*TICKSPERFOOT);
+				strafeRight((9.0/12.0)*STRAFETICKSPERFOOT);
 				break;
 			case 45:
-				strafeRight((14.0/12.0)*TICKSPERFOOT);
+				strafeRight((14.0/12.0)*STRAFETICKSPERFOOT);
 				break;
 		}
 		halt();
 	}
-	goForward(1.25*TICKSPERFOOT,RobotPosition.getFacing()%2);
+	goForward(1.25*TICKSPERFOOT);
 	cameraDown();
 	char slot = 'Z';
 	slot = readObject(fdJevois);
 	while(slot != 'B' || slot != 'E'){
 		if ( slot == 'A' || slot == 'D') {
-			strafeLeft(.1*TICKSPERFOOT);
+			strafeLeft(.1*STRAFETICKSPERFOOT);
 		} else if (slot == 'C' || slot == 'F'){
-			strafeRight(.1*TICKSPERFOOT);
+			strafeRight(.1*STRAFETICKSPERFOOT);
 		} else {
-			strafeLeft(.25*TICKSPERFOOT);
+			strafeLeft(.25*STRAFETICKSPERFOOT);
 		}
 		halt();
 		slot = readObject(fdJevois);
@@ -1043,7 +1131,7 @@ char examineMothership(){
 	}
 	
 	//TODO: Figure out distance
-	goForward(1*TICKSPERFOOT,RobotPosition.getFacing()%2);
+	goForward(1*TICKSPERFOOT);
 	
 	if(leftRamp){
 		pivotRight(1);
@@ -1052,7 +1140,7 @@ char examineMothership(){
 	}
 	
 	//TODO: Figure out distance
-	goForward(.75*TICKSPERFOOT,RobotPosition.getFacing()%2);
+	goForward(.75*TICKSPERFOOT);
 	
 	if(leftRamp){
 		pivotRight(1);
@@ -1062,8 +1150,9 @@ char examineMothership(){
 	//Facing Ramp
 	
 	//dirve to first position
-	goForward(.75*TICKSPERFOOT,RobotPosition.getFacing()%2);
-	
+	goForward(.75*TICKSPERFOOT);
+	openClaw();
+	punchersDown();	
 	if((slot == 'E'&& leftRamp) || (slot == 'B'&& !leftRamp)){
 		rotateToLoad('A');
 		system("python StepperTwelfthCW");
@@ -1071,13 +1160,13 @@ char examineMothership(){
 		punchersUp();
 		usleep(500000);
 		punchersDown();
-		goForward(.25*TICKSPERFOOT,RobotPosition.getFacing()%2);
+		goForward(.25*TICKSPERFOOT);
 		counterClockwiseSixth();
 		//EB
 		punchersUp();
 		usleep(500000);
 		punchersDown();
-		goForward(.25*TICKSPERFOOT,RobotPosition.getFacing()%2);
+		goForward(.25*TICKSPERFOOT);
 		counterClockwiseSixth();
 		//AF
 		punchersUp();
@@ -1090,13 +1179,13 @@ char examineMothership(){
 		punchersUp();
 		usleep(500000);
 		punchersDown();
-		goForward(.25*TICKSPERFOOT,RobotPosition.getFacing()%2);
+		goForward(.25*TICKSPERFOOT);
 		clockwiseSixth();
 		//EB
 		punchersUp();
 		usleep(500000);
 		punchersDown();
-		goForward(.25*TICKSPERFOOT,RobotPosition.getFacing()%2);
+		goForward(.25*TICKSPERFOOT);
 		clockwiseSixth();
 		//CD
 		punchersUp();
@@ -1105,7 +1194,7 @@ char examineMothership(){
 	}
 	
 	//Figure out distance
-	goBackward(1.5*TICKSPERFOOT,RobotPosition.getFacing()%2);
+	goBackward(1.5*TICKSPERFOOT,0);
 	if (dir == 'r'){
 		pivotLeft(1,ang);
 	} else {
@@ -1131,7 +1220,7 @@ int boardMothership(char letter){
 		halt();
 		
 		// drive forward
-		goForward(2500,RobotPosition.getFacing()%2);
+		goForward(2500);
 		/*stop = RobotPosition.curPos.EW + 2500;	//placeholder	
 		frontLeft.run(FORWARD);	
 		frontRight.run(FORWARD);
@@ -1163,7 +1252,7 @@ int boardMothership(char letter){
 		backLeft.run(FORWARD);
 		backRight.run(FORWARD);
 		checkEncoder(stop);*/
-		goForward(2500,RobotPosition.getFacing()%2);
+		goForward(2500);
 		halt();
 		
 		// face ramp
@@ -1181,7 +1270,7 @@ int boardMothership(char letter){
 	backLeft.run(FORWARD);
 	backRight.run(FORWARD);
 	checkEncoder(stop);*/
-	goForward(3000,RobotPosition.getFacing()%2);
+	goForward(3000);
 	halt();
 	
 	// dump blocks
@@ -1199,7 +1288,7 @@ int boardMothership(char letter){
 	backLeft.run(FORWARD);
 	backRight.run(FORWARD);
 	checkEncoder(stop);*/
-	goForward(300,RobotPosition.getFacing()%2);
+	goForward(300);
 	halt();
 	
 	// dump blocks
@@ -1217,7 +1306,7 @@ int boardMothership(char letter){
 	backLeft.run(FORWARD);
 	backRight.run(FORWARD);
 	checkEncoder(stop);*/
-	goForward(300,RobotPosition.getFacing()%2);
+	goForward(300);
 	halt();
 	
 	// dump blocks
@@ -1239,7 +1328,7 @@ int lookForBlock(int blockX, int blockY){
 	cout << "Xdisp = " << Xdisp << endl;
 	cout << "Ydisp = " << Ydisp << endl;
 	cout << "Look for Block Case: ";
-	switch(RobotPosition.curPos.facing)
+	switch((int)(RobotPosition.getAng()/90))
 	{
 		// facing North to begin
 		case 0: // block is north
@@ -1254,6 +1343,7 @@ int lookForBlock(int blockX, int blockY){
 				{
 					cout << 2 << endl;
 					goToPointNS(blockX+1*TICKSPERFOOT, blockY);
+					cout << "About to turn to face block" << endl;
 					turnToFace(3);
 				}
 				else if(Xdisp==0 && Ydisp>0)
@@ -1512,6 +1602,10 @@ void lowerClaw(){
 	printf("Lower Claw!\n");
 	//cout << "Lift Bottom Button: " << gpio_read(pi, LIFTBOTTOMSWITCH) << endl;
 	if(/*RobotPosition.getLiftPos() == 1 || */!gpio_read(pi, LIFTBOTTOMSWITCH)){
+		if(!gpio_read(pi, LIFTTOPSWITCH)){
+			cout << "I don't know if the claw is up or down.:" << endl;
+			return;
+		}
 		printf("Lowering\n");
 		liftMotor.run(DOWN);
 		liftMotor.setSpeed(LIFTSPEED);

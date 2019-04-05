@@ -2,41 +2,38 @@
 
 using namespace std;
 
+
 int main(){
 	signal(2, ctrl_c_handler);
-	
-	double startX = 0;
-	double startY = 0;
-	
-	RobotPosition.curPos.NS = startY*TICKSPERFOOT;
-	RobotPosition.curPos.EW	= startX*TICKSPERFOOT;
 	
 	initilizePigpiod();	
 	initilizeArduinoSerial();
 	initilizeJevoisSerial();	
 	
+	double startX = 0;
+	double startY = 0;
+	char pause;
+	
+	RobotPosition.curPos.NS = startY*TICKSPERFOOT;
+	RobotPosition.curPos.EW	= startX*TICKSPERFOOT;
+
 	openClaw();
-	liftClaw();
+	//sleep(2);
+	//cameraUp();
+	//closeClaw();
+	//sleep(2);
+	//liftClaw();
 	twistIn();
-	punchersDown();
-	
-	cameraDrive();
-	
+	//twistOut();
+	cameraDown();
 	waitForGreen();
-	
-	//findBlockInSquare();
-	//activateOCR(fdJevois);	
-	camStreamOff(fdJevois);
-	char letter = getBlock();
-	
-	liftClaw();
-	twistIn();
-	rotateToLoad(letter);
-	sleep(2);
-	openClaw();
-	
+
 	cameraDrive();
-	
+	activateObjectDetect(fdJevois);
+	while(true){
+		cout << camGetLine(fdJevois);
+	}	
 	endProgram();
 	return 0;
 }
+

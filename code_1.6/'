@@ -338,7 +338,6 @@ int motherFacing = 0;
 int executingEvasive = 0;
 bool evasiveUsed = false;
 int startTicks;
-int findFailures = 0;
 
 int checkEncoder(int stop){
 		char ch = '0';
@@ -368,7 +367,7 @@ int checkEncoder(int stop){
 					evasiveManeuvers(curDestX,curDestY);				
 				}*/
 				if(num%25==0&&jevoisMode==JEVOISMODEOBJ&&!turning){
-					if(pingCam(fdJevois) > 0 && msFound){
+					if(pingCam(fdJevois) > 0 || msFound){
 						cout << "Mothership seen! at " << num << endl;
 						if(motherX > 10){
 							cout << "MOTHERSHIP FOUND" << endl;
@@ -383,7 +382,6 @@ int checkEncoder(int stop){
 							RobotPosition.changePosition(num-startTicks,RobotPosition.getAng());
 							evasiveManeuvers(curDestX,curDestY);
 							evasiveUsed = true;
-							cout << "Evasive was used" << endl;
 						}
 					}					
 				}
@@ -410,7 +408,7 @@ int checkEncoder(int stop){
 					evasiveManeuvers(curDestX,curDestY);				
 				}*/
 				if(num%25==0&&jevoisMode==JEVOISMODEOBJ&&!turning){
-					if(pingCam(fdJevois) > 0 && msFound){
+					if(pingCam(fdJevois) > 0 || msFound){
 						cout << "Mothership seen! at " << num << endl;
 						if(motherX  > 10){
 							cout << "MOTHERSHIP FOUND" << endl;
@@ -425,7 +423,6 @@ int checkEncoder(int stop){
 							RobotPosition.changePosition(num-startTicks,RobotPosition.getAng());
 							evasiveManeuvers(curDestX,curDestY);
 							evasiveUsed = true;
-							cout << "Evasive was used" << endl;
 						}
 					}					
 				}
@@ -437,7 +434,6 @@ int checkEncoder(int stop){
 			cout << "Evasive Used End Check Encoder :" << num << endl;
 			return 0;
 		}
-		RobotPosition.curPos.arduino = num;
 		cout << "End Check Encoder: " << num << endl;
 		return num;
 }
@@ -491,7 +487,7 @@ int goForward(int distance/*,int facing*/){ //facing = 0 NS, 1 EW
 	}*/
 	
 	int ticks = checkEncoder(stopPos);
-	if(ticks == 0 && evasiveUsed){
+	if(ticks = 0 && evasiveUsed){
 		cout << "Clear Evasive Used" << endl;
 		evasiveUsed = false;
 		return 1;
@@ -953,34 +949,7 @@ int findBlock(int fd){
 	//fd = initilizeJevoisSerial();
 	activateBlockDetect(fd);
 	cout << "Block Detect Activated" << endl;
-	string num = serialGetLineObjDetect(fd);
-	if(num == "error"){
-		findFailures++;
-		switch(findFailures){
-			case 1:
-				goBackward(.5*TICKSPERFOOT,RobotPosition.getAng());
-				num = findBlock(fd);
-				break;
-			case 2:
-				pivotLeft(1,15);
-				num = findBlock(fd);
-				break;
-			case 3:
-				pivotRight(1,30);
-				num = findBlock(fd);
-				break;
-			case 4:
-				pivotLeft(1,15);
-				goForward(1.5*TICKSPERFOOT);
-				findFailures = 0;
-				num = findBlock(fd);
-				cout << "You're stuck in a deep, dark hole of recursion" << endl;
-				break;
-		}
-		
-		
-		
-	}
+	string num = camGetLine(fd);
 	cout << "Block at " << num << endl;
 	camStreamOff(fd);
 	//serial_close(pi,fd);
@@ -1177,10 +1146,6 @@ char examineMothership(){
 	}
 	
 	// TODO: Center on B/E
-	
-	int center = 120;
-	int current = -1;
-	while (0);
 	
 	// Choose innermost ramp
 	// TODO: Implent trig position calculations
@@ -1452,20 +1417,17 @@ int lookForBlock(int blockX, int blockY){
 				{
 					cout << 6 << endl;
 					goToPointEW(blockX, blockY+1*TICKSPERFOOT);
-					turnToFace(2);
 				}
 				// block is directly east or west
 				else if(Xdisp>0 && Ydisp==0)
 				{
 					cout << 7 << endl;
 					goToPointEW(blockX-1*TICKSPERFOOT, blockY);
-					turnToFace(1);
 				}	
 				else if(Xdisp<0 && Ydisp==0)
 				{
 					cout << 8 << endl;
 					goToPointEW(blockX+1*TICKSPERFOOT, blockY);
-					turnToFace(3);
 				}	
 				else
 					cout << "I'm facing North, but I don't know where to go" << endl;
@@ -1490,7 +1452,6 @@ int lookForBlock(int blockX, int blockY){
 				{
 					cout << 11 << endl;
 					goToPointNS(blockX, blockY-1*TICKSPERFOOT);
-					turnToFace(0);
 				}
 				// block is south
 				else if(Xdisp>0 && Ydisp<0)
@@ -1509,7 +1470,6 @@ int lookForBlock(int blockX, int blockY){
 				{
 					cout << 14 << endl;
 					goToPointEW(blockX, blockY+1*TICKSPERFOOT);
-					turnToFace(2);
 				}
 				// block is directly east or west
 				else if(Xdisp>0 && Ydisp==0)
@@ -1521,7 +1481,6 @@ int lookForBlock(int blockX, int blockY){
 				{
 					cout << 16 << endl;
 					goToPointEW(blockX+1*TICKSPERFOOT, blockY);
-					turnToFace(3);
 				}	
 				else
 					cout << "I'm facing East, but I don't know where to go" << endl;
@@ -1546,7 +1505,6 @@ int lookForBlock(int blockX, int blockY){
 				{
 					cout << 19 << endl;
 					goToPointNS(blockX, blockY-1*TICKSPERFOOT);
-					turnToFace(0);
 				}
 				// block is south
 				else if(Xdisp>0 && Ydisp<0)
@@ -1571,13 +1529,11 @@ int lookForBlock(int blockX, int blockY){
 				{
 					cout << 23 << endl;
 					goToPointEW(blockX-1*TICKSPERFOOT, blockY);
-					turnToFace(1);
 				}	
 				else if(Xdisp<0 && Ydisp==0)
 				{
 					cout << 24 << endl;
 					goToPointEW(blockX+1*TICKSPERFOOT, blockY);
-					turnToFace(3);
 				}	
 				else
 					cout << "I'm facing South, but I don't know where to go" << endl;
@@ -1602,7 +1558,6 @@ int lookForBlock(int blockX, int blockY){
 				{
 					cout << 27 << endl;
 					goToPointNS(blockX, blockY-1*TICKSPERFOOT);
-					turnToFace(0);
 				}
 				// block is south
 				else if(Xdisp>0 && Ydisp<0)
@@ -1621,14 +1576,12 @@ int lookForBlock(int blockX, int blockY){
 				{
 					cout << 30 << endl;
 					goToPointEW(blockX, blockY+1*TICKSPERFOOT);
-					turnToFace(2);
 				}
 				// block is directly east or west
 				else if(Xdisp>0 && Ydisp==0)
 				{
 					cout << 31 << endl;
 					goToPointEW(blockX-1*TICKSPERFOOT, blockY);
-					turnToFace(1);
 				}	
 				else if(Xdisp<0 && Ydisp==0)
 				{
@@ -2020,7 +1973,6 @@ void waitForGreen(){
 void stopOnRed(int pi, unsigned user_gpio, unsigned level, uint32_t tick){
 	cout << "RED PRESSED!" << endl;
 	cout << "Stoping the program!" << endl;
-	halt();
 	endProgram();
 	exit(5);
 	return;

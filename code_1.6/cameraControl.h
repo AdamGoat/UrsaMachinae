@@ -28,10 +28,10 @@ string readMsObject(int fd);
 
 int pingCam(int fd){
 	int amt = 0;
-	cout << "Ping" << endl;
+	//cout << "Ping" << endl;
 	serialPuts(fd,"ping\n\0");
 	string line = camGetLine(fd);
-	cout << line << endl;
+	//cout << line << endl;
 	//cout << "cmp " <<line.find("ALIVE") << endl;
 	while(line.find("ALIVE") != 0){
 		amt++;
@@ -42,12 +42,12 @@ int pingCam(int fd){
 			readObject(line);
 		}			
 		line = camGetLine(fd);
-		//cout << line;
+		cout << line;
 		//cout << "cmp " <<line.find("ALIVE") << endl;
 	}
 	//cout << line;
-	cout << "End Ping" << endl;
-	cout << camGetLine(fd);
+	//cout << "End Ping" << endl;
+	camGetLine(fd);
 	return amt;
 }
 
@@ -67,7 +67,16 @@ char readObject(int fd){
 	pingCam(fd);
 	return obj;
 }
-
+int readObjectX(int fd){
+	cout << "Reading for Object X Pos" << endl;
+	string line = canGetLine(fd);
+	camStreamOff(fd);
+	cout << "Object Info: " << line << endl;
+	string xLoc = line.substr(line.find("jpg")+4,4);
+	cout << "xLoc first pass: " << xLoc << cout;
+	xLoc = xLoc.substr(0,xLoc.find_first_of(' '));
+	cout << "xLoc final string: " << xLoc << cout;
+	return atoi(xLoc.c_str());
 string readMsObject(int fd){
 	string rtn;
 	cout << "Reading MS Object" << endl;
@@ -140,9 +149,10 @@ void activateObjectDetect(int fd){
 	serialPuts(fd,"setpar serstyle Normal\n\0");
 	serialPuts(fd,"setpar serout USB\n\0");
 	serialPuts(fd,"setpar serlimit 1\n\0");
+	serialPuts(fd,"setpar goodpts 5...100\n\0");
 	serialPuts(fd,"streamon\n\0");
 	//cout << "messages sent" << endl;
-	printChunkCam(fd,5);
+	printChunkCam(fd,6);
 	cout << "}" << endl;
 	streamOn = true;
 	return;
@@ -191,6 +201,26 @@ string camGetLine(int fd){
 	}
 	rtn += '\n';
 	//cout << "}" << endl;
+	return rtn;
+}
+
+string camGetLineObjDetect(int fd){	
+	int tries=0;
+	string rtn;
+	char ch = '\0';
+	while(ch != '\n' && tries<3000){
+		if(serialDataAvail(fd)>0){
+			ch = (char)serialGetchar(fd);
+			if(ch >= ' ' && ch <= 'z'){
+				rtn += ch;
+			}
+		}
+		tries++;
+		usleep(1000);
+	}
+	if(tries>=3000)
+		return "error";
+	rtn += '\n';
 	return rtn;
 }
 

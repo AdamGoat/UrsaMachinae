@@ -65,10 +65,10 @@ int main(){
 	pair<double,double> blk3;
 	
 	blk1.first = -1;
-	blk1.second = 1;
-	blk2.first = -3;
+	blk1.second = 0;
+	blk2.first = -300;
 	blk2.second = 0;
-	blk3.first = 2;
+	blk3.first = 200;
 	blk3.second = -2;
 
 	locals[0] = blk1;
@@ -81,15 +81,15 @@ int main(){
 	//cameraUp();
 	//closeClaw();
 	//sleep(2);
-	//liftClaw();
+	liftClaw();
 	twistIn();
 	//twistOut();
 	cameraDown();
 	waitForGreen();
 
 	cameraDrive();
-	for (int i = 0; i < numBlocks-0; i++){
-		//activateObjectDetect(fdJevois);
+	for (int i = 0; i < numBlocks-2; i++){
+		activateObjectDetect(fdJevois);
 		pair<double,double> result;
 		result = chooseDest(locals);
 		cout << "Next block @ (" << curBlockX << "," << curBlockY << ")" << endl;
@@ -113,7 +113,8 @@ int main(){
 	
 	lookForBlock(motherX*TICKSPERFOOT,motherY*TICKSPERFOOT);
 	turnToFace(motherFacing);
-	boardMothership('C');
+	//boardMothership('C');
+	examineMothership();
 	
 	/*cout << "Dump Blocks" << endl;
 		twistIn();

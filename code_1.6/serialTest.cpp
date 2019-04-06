@@ -24,7 +24,7 @@ int main(){
 	
 	waitForGreen();
 	
-	//findBlockInSquare();
+	findBlockInSquare();
 	//activateOCR(fdJevois);	
 	camStreamOff(fdJevois);
 	char letter = getBlock();

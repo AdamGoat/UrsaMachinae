@@ -1,0 +1,667 @@
+#include "stdio.h"
+#include <iostream>
+#include <signal.h>
+#include <unistd.h>
+#include <string>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <string>
+#include <math.h>
+#include <fstream>
+
+#include "/home/pi/Documents/UrsaMachinae/code_1.6/Adafruit_MotorHAT.h"
+#include <pigpiod_if2.h>
+#include <pigpio.h>
+
+#include <wiringSerial.h>
+
+#include "cameraControl.h"
+
+#define FORWARDSPEED 	 	250
+#define STRAFESPEED  	 	250
+#define PIVOTSPEED		 	150
+#define UP		 	 		FORWARD
+#define DOWN		 		BACKWARD
+#define LIFTSPEED	 		250
+#define LIFTTIME	 		6950000
+#define LOWERTIME	 		6900000
+#define PIVOTTIME	 		3500000
+#define TWISTSERVOPIN		18 
+#define GRIPPERSERVOPIN 	17
+#define CAMERASERVOPIN		24
+#define	LIFTTOPSWITCH		21
+#define LIFTBOTTOMSWITCH	19
+#define MIN_SERVO	 		850	//650
+#define	MAX_SERVO	 		2150
+#define CAMERAUP	 		1600
+#define CAMERADRIVE			1300
+#define CAMERADOWN	 		950
+#define TWISTIN 	 		553 //553
+#define TWISTOUT 	 		2350
+#define NSFACING	 		0
+#define EWFACING	 		1
+#define PIVOTTICKS	 		1123 //1125
+#define TICKSPERFOOT 		1143
+#define STRAFETICKSPERFOOT		1205
+#define	DOUGETICKS	 		TICKSPERFOOT/2
+
+#define RIGHTPUNCHERPIN		27
+#define LEFTPUNCHERPIN		22
+#define RIGHTPUNCHERUP		1790  //1825 for center //1800 going up //1790
+#define RIGHTPUNCHERDOWN	1540	//Dont go lower than this will get stuck
+#define LEFTPUNCHERUP		1540
+#define LEFTPUNCHERDOWN	    1790
+
+#define ARDUINORESETPIN		4
+#define FINISHLEDPIN		16
+#define GREENBUTTONPIN		5
+#define REDBUTTONPIN		6
+
+//TODO Define edges to [-4,3]
+#define BOARDEDGENORTH		8*TICKSPERFOOT
+#define BOARDEDGESOUTH		0
+#define BOARDEDGEEAST		8*TICKSPERFOOT 
+#define BOARDEDGEWEST		0
+
+//enum Directions {N, E, S, W};
+
+using namespace std;
+
+
+
+struct pos{
+	double NS;
+	double EW;
+	//Directions facing;
+	int facing;
+	int ang;
+	int claw;
+	int lift;
+	int camera;
+	int twist;
+	char loadZone;
+	char dumpZone;
+	int arduino;
+	int puncher;
+	int stepperOffset;
+};
+
+class position{
+	public:
+	pos curPos;
+	position(){
+		curPos.NS = 0;
+		curPos.EW = 0;
+		curPos.ang = 0;
+		curPos.claw = 1;
+		curPos.lift = 0;
+		curPos.facing = 0;
+		curPos.camera = 1;
+		curPos.twist = 1;
+		curPos.loadZone = 'A';
+		curPos.dumpZone = 'A';
+		curPos.arduino = 000;
+		curPos.puncher = 1;			//NOTE: will hopefully start down but punchers down will be called 
+		curPos.stepperOffset = 0;
+	}
+	pos getCurrentPos(){
+		return curPos;
+	}
+	pos moveNS(double change){
+		curPos.NS += change;
+		return curPos;
+	}
+	pos moveEW(double change){
+		curPos.EW += change;
+		return curPos;
+	}
+	pos changeAng(double change){
+		curPos.ang += change;
+		if(abs(curPos.ang) >= 360){
+			curPos.ang = curPos.ang % 360;
+		}
+		if(curPos.ang < 0){
+			curPos.ang += 360;
+		}
+		cout << "New angle = " << curPos.ang << endl;
+		return curPos;
+	}
+	int getAng(){
+		return curPos.ang;
+	}
+	
+	pos changePosition(int ticks, int ang){
+		cout << "Change Position ticks: " << ticks << " Degree ang: " << ang << endl;
+		// N = 0
+		// E = 90
+		// S = 180
+		// W = 270
+		
+		// ang = direction of travel
+		double rad = ang*M_PI/180; //cos and sin are in radian
+		cout << "Change Position ticks: " << ticks << " Radian ang: " << rad << endl;
+		if ( ang >= 45 && ang < 135){ // ~East
+		   	moveNS(round(ticks*cos(rad)));
+			moveEW(round(ticks*sin(rad)));
+		} else if (ang >= 135 && ang < 225){ // ~South
+		   	moveNS(round(ticks*cos(rad)));
+			moveEW(round(ticks*sin(rad)));
+		} else if (ang >= 225 && ang < 315){ // ~West
+			moveNS(round(ticks*cos(rad)));
+			cout << "move NS: " << round(ticks*cos(rad)) << endl;
+			moveEW(round(ticks*sin(rad)));
+			cout << "move EW: " << round(ticks*sin(rad)) << endl;
+		} else { // ~North
+			moveNS(round(ticks*cos(rad)));
+			moveEW(round(ticks*sin(rad)));
+		}
+				
+		return curPos;
+	} 
+	
+	pos changeFacingCW(){
+		++(curPos.facing) %= 4;
+		return curPos;
+	}
+	pos changeFacingCCW(){
+		curPos.facing--;
+		if (curPos.facing < 0)
+			curPos.facing = 3;
+		return curPos;
+	}
+	int getFacing(){
+		return curPos.facing;
+	}
+	int getPuncher(){
+		return curPos.puncher;
+	}
+	int getLiftPos(){
+		// 0 = down
+		// 1 = up
+		return curPos.lift;
+	}
+	int switchLiftPos(){
+		curPos.lift++;
+		curPos.lift %= 2;
+		return curPos.lift;
+	}
+	int getClawPos(){
+		// 0 = open
+		// 1 = close
+		return curPos.claw;
+	}
+	int switchClawPos(){
+		curPos.claw++;
+		curPos.claw %= 2;
+		return curPos.claw;
+	}
+	int getCameraPos(){
+		// 0 = down
+		// 1 = up
+		// 2 = drive
+		return curPos.camera;
+	}
+	int switchCameraPos(){
+		curPos.camera++;
+		curPos.camera %= 2;
+		return curPos.camera;
+	}
+	int getTwistPos(){
+		// 0 = in
+		// 1 = out
+		return curPos.twist;
+	}
+	int switchTwistPos(){
+		curPos.twist++;
+		curPos.twist %= 2;
+		return curPos.twist;
+	}
+	int switchPuncherPos(){
+		curPos.puncher++;
+		curPos.puncher %= 2;
+		return curPos.puncher;
+	}
+	char getLoadZone(){
+		//A = A 
+		//B = B
+		//C = C
+		//D = F
+		//E = E
+		//F = D
+		return curPos.loadZone;
+	}
+	char getDumpZone(){
+		//A = AF
+		//B = BE
+		//C = CD
+		return curPos.dumpZone;
+	}
+	char incLoadZone(){
+		curPos.loadZone++;
+		cout << "Inc load to " << curPos.loadZone << endl;
+		if (curPos.loadZone > 'F'){
+			cout << "IncLoad wrap " << curPos.loadZone << endl;
+			curPos.loadZone = 'A';
+		}
+		return curPos.loadZone;
+	}
+	char decLoadZone(){
+		curPos.loadZone--;
+		if (curPos.loadZone < 'A')
+			curPos.loadZone ='F';
+		return curPos.loadZone;
+	}
+	int getArduinoValue(){
+		return curPos.arduino;
+	}
+};
+
+int goForward(int distance/*,int facing*/);
+int strafeLeft(int distance);
+int strafeRight(int distance);
+int pivotLeft(int positions,int degrees);
+int pivotRight(int positions,int degrees);
+void liftClaw();
+void lowerClaw();
+int openClaw();
+int closeClaw();
+int haltClaw();
+int halt();
+void ctrl_c_handler(int s);
+int checkEncoder(int stop);
+int cameraUp();
+int cameraDown();
+int twistIn();
+int twistOut();
+char rotateToLoad(char load);
+void switchToDump();
+char rotateToDump(char dump);
+int turnToFace(int direction);
+int goToPointNS(int Xdest, int Ydest);
+int goToPointEW(int Xdest, int Ydest);
+pair<double,double> chooseDest(pair<double,double> coordinates[]);
+void evasiveManeuvers(int Xdest, int Ydest);
+void strafe(int distance);
+int lookForBlock(int blockX, int blockY);
+int initilizeArduinoSerial();
+int initilizeJevoisSerial();
+int initilizePigpiod();
+void endProgram();
+
+//void serialTrash(int fd);
+int findBlock(int fd);
+void cameraDrive();
+
+char getBlock();
+void findBlockInSquare();
+void punchersUp();
+void punchersDown();
+void servoOff(int servoPin);
+
+char examineMothership();
+
+void clockwiseSixth();
+void counterClockwiseSixth();
+
+void blinkLED();
+void waitForGreen();
+void stopOnRed(int pi, unsigned user_gpio, unsigned level, uint32_t tick);
+
+Adafruit_MotorHAT  hat (0x61,1600,-1,-1);
+Adafruit_MotorHAT  hat2(0x60,1600,-1,-1);
+
+Adafruit_DCMotor& frontLeft  = hat.getDC(1);
+Adafruit_DCMotor& frontRight = hat.getDC(2);
+Adafruit_DCMotor& backLeft   = hat.getDC(3);
+Adafruit_DCMotor& backRight  = hat.getDC(4);
+
+Adafruit_DCMotor& liftMotor  = hat2.getDC(1);
+
+position RobotPosition;
+int fdArduino;
+int fdJevois;
+int pi;
+int curBlockX;
+int curBlockY;
+int curDestX;
+int curDestY;
+int finalKnownPosX;
+int finalKnownPosY;
+int numBlocks;
+bool turning;
+double motherX = 100;
+double motherY = 100;
+int motherFacing = 0;
+int executingEvasive = 0;
+bool evasiveUsed = false;
+int startTicks;
+int findFailures = 0;
+
+int checkEncoder(int stop){
+		char ch = '0';
+		char numString[10] = {'\0','\0','\0','\0','\0','\0','\0','\0','\0','\0'};
+		int num;
+		int n = 0;
+		cout << "Start Check Encoder: " << RobotPosition.curPos.arduino << endl; 
+		if(RobotPosition.curPos.arduino < stop){
+			num = -100000;
+			cout << "arduino < stop" << endl;
+			while(num < stop && !evasiveUsed){
+				while(ch != '\n'){
+					ch = (char)serialGetchar(fdArduino);
+					numString[n] = ch;
+					n++;
+					//cout << ch;
+				}
+				numString[n] = '\0';
+				n--;
+				num = atoi(numString);
+				//cout << num << endl;
+				n = 0;
+				ch = '0';
+				//TODO disable for pivot
+				/*if(serial_data_available(pi,fdJevois) > 0 && jevoisMode == JEVOISMODEOBJ && !turning){
+					cout << camGetLine(fdJevois) << endl;
+					evasiveManeuvers(curDestX,curDestY);				
+				}*/
+				if(num%25==0&&jevoisMode==JEVOISMODEOBJ&&!turning){
+					if(pingCam(fdJevois) > 0 && msFound){
+						cout << "Mothership seen! at " << num << endl;
+						if(motherX > 10){
+							cout << "MOTHERSHIP FOUND" << endl;
+							motherX = RobotPosition.curPos.EW;
+							motherY = RobotPosition.curPos.NS;
+							motherFacing = RobotPosition.curPos.facing;
+						}
+						msFound = false;
+						cout << "Execute Evasive: " << executingEvasive << endl;
+						if(executingEvasive == 0){
+							RobotPosition.curPos.arduino = num;
+							RobotPosition.changePosition(num-startTicks,RobotPosition.getAng());
+							evasiveManeuvers(curDestX,curDestY);
+							evasiveUsed = true;
+							cout << "Evasive was used" << endl;
+						}
+					}					
+				}
+			}
+               }else{
+			num = 100000;
+			cout << "arduino > stop" << endl;
+			while(num > stop && !evasiveUsed){
+				while(ch != '\n'){
+					ch = (char)serialGetchar(fdArduino);
+					numString[n] = ch;
+					n++;
+					//cout << ch;
+				}
+				numString[n] = '\0';
+				n--;
+				num = atoi(numString);
+				//cout << num << endl;
+				n = 0;
+				ch = '0';
+				//TODO disable for pivot
+				/*if(serial_data_available(pi,fdJevois) > 0 && jevoisMode == JEVOISMODEOBJ && !turning){
+					cout << camGetLine(fdJevois) << endl;
+					evasiveManeuvers(curDestX,curDestY);				
+				}*/
+				if(num%25==0&&jevoisMode==JEVOISMODEOBJ&&!turning){
+					if(pingCam(fdJevois) > 0 && msFound){
+						cout << "Mothership seen! at " << num << endl;
+						if(motherX  > 10){
+							cout << "MOTHERSHIP FOUND" << endl;
+							motherX = RobotPosition.curPos.EW;
+							motherY = RobotPosition.curPos.NS;
+							motherFacing = RobotPosition.curPos.facing;
+						} 
+						msFound = false;
+						cout << "Execute Evasive: " << executingEvasive << endl;
+						if(executingEvasive == 0){
+							RobotPosition.curPos.arduino = num;
+							RobotPosition.changePosition(num-startTicks,RobotPosition.getAng());
+							evasiveManeuvers(curDestX,curDestY);
+							evasiveUsed = true;
+							cout << "Evasive was used" << endl;
+						}
+					}					
+				}
+					
+			}
+		}
+		if(evasiveUsed){
+			RobotPosition.curPos.arduino = num;
+			cout << "Evasive Used End Check Encoder :" << num << endl;
+			return 0;
+		}
+		RobotPosition.curPos.arduino = num;
+		cout << "End Check Encoder: " << num << endl;
+		return num;
+}
+
+int goForward(int distance/*,int facing*/){ //facing = 0 NS, 1 EW
+	distance = abs(distance);
+	cout << "Drive Forward: " << distance/TICKSPERFOOT << endl;
+	turning = false;
+	//All motors forward
+	frontLeft.run(FORWARD);	
+	frontRight.run(FORWARD);
+	backLeft.run(FORWARD);
+	backRight.run(FORWARD);
+	
+	int startPos,stopPos;
+	startPos = RobotPosition.curPos.arduino;
+	startTicks = startPos;
+	
+	frontLeft.setSpeed(50);
+	frontRight.setSpeed(50);
+	backLeft.setSpeed(50);
+	backRight.setSpeed(50);
+
+	usleep(40000);
+	
+	//distance = abs(distance);
+	stopPos = startPos + abs(distance);
+	
+	//All motors max speed
+	//frontLeft.setSpeed(FORWARDSPEED+5);
+	//frontRight.setSpeed(FORWARDSPEED-7);
+	//backLeft.setSpeed(FORWARDSPEED+5);
+	//backRight.setSpeed(FORWARDSPEED-7);
+	frontLeft.setSpeed(FORWARDSPEED+4);
+	frontRight.setSpeed(FORWARDSPEED-2.1);
+	backLeft.setSpeed(FORWARDSPEED-5);
+	backRight.setSpeed(FORWARDSPEED-2.1);
+
+	
+	cout << "Start = " << startPos << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
+	cout << "Stop = " << stopPos << endl;
+	
+	/*if (facing == 0){
+		cout << "North South" << endl;
+		RobotPosition.curPos.NS += (distance/abs(distance))* (checkEncoder(stopPos)- startPos);
+	} else {
+		cout << "East West" <<endl;
+		RobotPosition.curPos.EW += (distance/abs(distance))* (checkEncoder(stopPos)- startPos);
+	}*/
+	
+	int ticks = checkEncoder(stopPos);
+	if(ticks == 0 && evasiveUsed){
+		cout << "Clear Evasive Used" << endl;
+		evasiveUsed = false;
+		return 1;
+	}
+	RobotPosition.changePosition(distance,RobotPosition.getAng());
+	
+	//halt();
+	cout << "Start = " << startPos << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
+	cout << "Stop = " << stopPos << endl;
+	cout << "Actual Stop = " << RobotPosition.curPos.arduino << endl;
+	cout << "(" << RobotPosition.curPos.EW/TICKSPERFOOT << "," << RobotPosition.curPos.NS/TICKSPERFOOT << ")" << endl;
+	halt();
+	usleep(1000000);
+	cout << "End Forward" << endl;
+	return 0;
+}
+
+int goBackward(int distance,int facing){ //facing = 0 NS, 1 EW
+	cout << "Drive Backward: " << distance/TICKSPERFOOT << endl;
+	turning = false;
+	//All motors forward
+	frontLeft.run(BACKWARD);	
+	frontRight.run(BACKWARD);
+	backLeft.run(BACKWARD);
+	backRight.run(BACKWARD);
+	
+	int startPos,stopPos,initVal;
+	startPos = RobotPosition.curPos.arduino;
+	
+	frontLeft.setSpeed(50);
+	frontRight.setSpeed(50);
+	backLeft.setSpeed(50);
+	backRight.setSpeed(50);
+
+	usleep(40000);
+	
+	if (facing == 0){
+		initVal = RobotPosition.curPos.NS;
+	} else {
+		initVal = RobotPosition.curPos.EW;
+	}
+	
+	//distance = abs(distance);
+	stopPos = startPos - abs(distance);
+	
+	//All motors max speed
+	//frontLeft.setSpeed(FORWARDSPEED+5);
+	//frontRight.setSpeed(FORWARDSPEED-7);
+	//backLeft.setSpeed(FORWARDSPEED+5);
+	//backRight.setSpeed(FORWARDSPEED-7);
+	frontLeft.setSpeed(FORWARDSPEED+4);
+	frontRight.setSpeed(FORWARDSPEED-2.1);
+	backLeft.setSpeed(FORWARDSPEED-5);
+	backRight.setSpeed(FORWARDSPEED-2.1);
+
+	
+	cout << "Start = " << startPos << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
+	cout << "Stop = " << stopPos << endl;
+	
+	//TODO: Update postition correctly
+	
+	/*if (facing == 0){
+		cout << "North South" << endl;
+		RobotPosition.curPos.NS += (distance/abs(distance))* (checkEncoder(stopPos)- startPos);
+	} else {
+		cout << "East West" <<endl;
+		RobotPosition.curPos.EW += (distance/abs(distance))* (checkEncoder(stopPos)- startPos);
+	}*/
+	
+	checkEncoder(stopPos);
+	
+	RobotPosition.changePosition(distance,(RobotPosition.getAng() + 180) % 360);
+	
+	//halt();
+	cout << "Start = " << startPos << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
+	cout << "Stop = " << stopPos << endl;
+	cout << "Actual Stop = " << RobotPosition.curPos.arduino << endl;
+	cout << "(" << RobotPosition.curPos.EW/TICKSPERFOOT << "," << RobotPosition.curPos.NS/TICKSPERFOOT << ")" << endl;
+	halt();
+	usleep(1000000);
+	cout << "End Backward" << endl;
+	return 0;
+}
+
+
+void strafe(int distance){
+	cout << "Strafing" << endl;
+	switch (RobotPosition.getFacing()){
+		case 0:
+			if(distance <= 0)
+				strafeLeft(distance);
+			else
+				strafeRight(distance);
+			break;
+		case 1:
+			if(distance <= 0)
+				strafeRight(distance);
+			else
+				strafeLeft(distance);
+			break;
+		case 2:
+			if(distance <= 0)
+				strafeRight(distance);
+			else
+				strafeLeft(distance);
+			break;
+		case 3:
+			if(distance <= 0)
+				strafeLeft(distance);
+			else
+				strafeRight(distance);
+			break;
+		default:
+			cout << "ERROR: Invalid Facing!" << endl;
+			return;
+		}
+	cout << "End Strafing" << endl;
+	return;
+}
+
+int strafeLeft(int distance){
+	printf("Strafe Left!\n");
+	//Motor directions for left
+	frontLeft.run(BACKWARD);
+	frontRight.run(FORWARD);
+	backLeft.run(FORWARD);
+	backRight.run(BACKWARD);
+	
+	turning = true;
+	
+	int startPos,stopPos;
+	/*if (RobotPosition.getFacing()%2 == 0){ //Fliped for strafing
+		cout << "Moving NS" << endl;
+		startPos = RobotPosition.curPos.NS;
+	} else {
+		cout << "Moving EW" << endl;
+		startPos = RobotPosition.curPos.EW;
+	}*/
+	startPos = RobotPosition.curPos.arduino;
+	
+	stopPos = startPos + (distance);
+	cout << "Start = " << startPos << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;
+	cout << "Current EW = " << RobotPosition.curPos.EW << endl;
+	cout << "Stop = " << stopPos << endl;
+	
+	//Go at strafing speed
+	frontLeft.setSpeed(STRAFESPEED);
+	frontRight.setSpeed(STRAFESPEED);
+	backLeft.setSpeed(STRAFESPEED);
+	backRight.setSpeed(STRAFESPEED);
+	
+	/*if (RobotPosition.getFacing()%2 == 0){
+		cout << "North South" << endl;
+		RobotPosition.curPos.NS += checkEncoder(stopPos) - startPos;
+	} else {
+		cout << "East West" <<endl;
+		RobotPosition.curPos.EW += checkEncoder(stopPos) - startPos;
+	}*/
+	
+	checkEncoder(stopPos);
+	halt();
+	RobotPosition.changePosition((TICKSPERFOOT/STRAFETICKSPERFOOT)*distance,(RobotPosition.getAng() + 270) % 360);
+	
+	cout << "Start = " << startPos << endl;
+	cout << "Current NS = " << RobotPosition.curPos.NS << endl;

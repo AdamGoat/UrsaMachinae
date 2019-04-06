@@ -46,7 +46,7 @@ int main(){
 	cin >> feet;
 	waitForGreen();
 	goForward(feet*TICKSPERFOOT,0);
-	pivotLeft(2);
-	goForward(feet*TICKSPERFOOT,0);
+	//pivotLeft(2);
+	//goForward(feet*TICKSPERFOOT,0);
 	return(0);
 }

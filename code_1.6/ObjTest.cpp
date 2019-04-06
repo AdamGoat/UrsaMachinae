@@ -26,7 +26,7 @@ int main(){
 	twistIn();
 	//twistOut();
 	cameraDown();
-	waitForGreen();
+	//waitForGreen();
 
 	cameraDrive();
 	activateObjectDetect(fdJevois);

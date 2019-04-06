@@ -25,6 +25,7 @@ int pingCam(int fd);
 char readObject(int fd);
 char readObject(string line);
 string readMsObject(int fd);
+string camGetLineObjDetect(int fd);
 
 int pingCam(int fd){
 	int amt = 0;
@@ -54,7 +55,8 @@ int pingCam(int fd){
 char readObject(string line){
 	cout << "Reading Object String" << endl;
 	cout << "Object Info: " << line << endl;
-	char obj = (line.c_str())[line.find_first_of(' ')+1];
+	char obj = (line.c_str())[line.find_first_of(' ')+7];
+	cout << "Object rtn = " << obj << endl;
 	return obj;
 }
 
@@ -69,16 +71,19 @@ char readObject(int fd){
 }
 int readObjectX(int fd){
 	cout << "Reading for Object X Pos" << endl;
-	string line = canGetLine(fd);
+	string line = camGetLine(fd);
 	camStreamOff(fd);
 	cout << "Object Info: " << line << endl;
 	string xLoc = line.substr(line.find("jpg")+4,4);
-	cout << "xLoc first pass: " << xLoc << cout;
+	cout << "xLoc first pass: " << xLoc << endl;
 	xLoc = xLoc.substr(0,xLoc.find_first_of(' '));
-	cout << "xLoc final string: " << xLoc << cout;
+	cout << "xLoc final string: " << xLoc << endl;
 	return atoi(xLoc.c_str());
+}
+
 string readMsObject(int fd){
 	string rtn;
+
 	cout << "Reading MS Object" << endl;
 	string line = camGetLine(fd);
 	camStreamOff(fd);

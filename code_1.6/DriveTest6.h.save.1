@@ -284,7 +284,6 @@ int turnToFace(int direction);
 int goToPointNS(int Xdest, int Ydest);
 int goToPointEW(int Xdest, int Ydest);
 pair<double,double> chooseDest(pair<double,double> coordinates[]);
-pair<double,double>* readJson();
 void evasiveManeuvers(int Xdest, int Ydest);
 void strafe(int distance);
 int lookForBlock(int blockX, int blockY);
@@ -294,7 +293,7 @@ int initilizePigpiod();
 void endProgram();
 
 //void serialTrash(int fd);
-string findBlock(int fd);
+int findBlock(int fd);
 void cameraDrive();
 
 char getBlock();
@@ -332,7 +331,6 @@ int curDestX;
 int curDestY;
 int finalKnownPosX;
 int finalKnownPosY;
-//int numBlocks;
 int numBlocks;
 bool turning;
 double motherX = 100;
@@ -342,7 +340,6 @@ int executingEvasive = 0;
 bool evasiveUsed = false;
 int startTicks;
 int findFailures = 0;
-pair<double,double> locals[6];
 
 int checkEncoder(int stop){
 		char ch = '0';
@@ -943,7 +940,6 @@ char getBlock(){
 	//char letter;
 	//cin >> letter;
 	cameraUp();
-	rotateToLoad(letter);
 	twistOut();
 	openClaw();
 	lowerClaw();
@@ -953,55 +949,44 @@ char getBlock(){
 	return letter;
 }
 
-string findBlock(int fd){
+int findBlock(int fd){
 	//serialTrash(fd);
 	//fd = initilizeJevoisSerial();
 	activateBlockDetect(fd);
 	cout << "Block Detect Activated" << endl;
 	string num = camGetLineObjDetect(fd);
-	camStreamOff(fd);
 	if(num == "error"){
 		findFailures++;
 		switch(findFailures){
 			case 1:
-				cout << "Find Block First Failure" << endl;
 				goBackward(.5*TICKSPERFOOT,RobotPosition.getAng());
 				num = findBlock(fd);
-				cout << "First Failure Return " << num << endl;
-				goForward(.5*TICKSPERFOOT);
 				break;
 			case 2:
-				cout << "Find Block Secound Failure" << endl;
 				pivotLeft(1,15);
 				num = findBlock(fd);
-				cout << "Secound Failure Return " << num << endl;
-				pivotRight(1,15);
 				break;
 			case 3:
-				cout << "Find Block Third Failure" << endl;
 				pivotRight(1,30);
 				num = findBlock(fd);
-				cout << "Third Failure Return " << num << endl;
-				pivotLeft(1,30);
 				break;
 			case 4:
-				cout << "Find Block Fourth Failure" << endl;
 				pivotLeft(1,15);
 				goForward(1.5*TICKSPERFOOT);
 				findFailures = 0;
-				cout << "You're stuck in a deep, dark hole of recursion" << endl;
 				num = findBlock(fd);
-				cout << "Fourth Failure Return " << num << endl;
-				goBackward(1.5*TICKSPERFOOT,RobotPosition.getAng());
+				cout << "You're stuck in a deep, dark hole of recursion" << endl;
 				break;
-			default:
-				cout << "Find Block Unknown Failure" << endl;
-		}		
+		}
+		
+		
+		
 	}
 	cout << "Block at " << num << endl;
+	camStreamOff(fd);
 	//serial_close(pi,fd);
-	//int dist = atoi(num.c_str());
-	return num;
+	int dist = atoi(num.c_str());
+	return dist;
 }
 
 void findBlockInSquare(){
@@ -1018,15 +1003,14 @@ void findBlockInSquare(){
 			strafeRight((int)(diff*1));
 		} 
 		halt();
-		findFailures = 0;
-		diff = atoi((findBlock(fdJevois)).c_str());
+		diff = findBlock(fdJevois);
 		//serialTrash(fdJevois);
 	}while(abs(diff) > 10);
 	return;
 }
 
 void punchersDown(){
-	if(RobotPosition.getPuncher() == 1 || true){
+	if(RobotPosition.getPuncher() == 1){
 		printf("Punchers Down\n");
 		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
 		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
@@ -1036,7 +1020,7 @@ void punchersDown(){
 }
 
 void punchersUp(){
-	if(RobotPosition.getPuncher() == 0||true){
+	if(RobotPosition.getPuncher() == 0){
 		printf("Punchers Up\n");
 		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
 		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
@@ -1134,9 +1118,8 @@ int goToPointEW(int Xdest, int Ydest){
 }
 
 char examineMothership(){
-	cout << "Start Examine MS" << endl;
 	char side;
-	activateObjectDetect(fdJevois);	
+	
 	string msInfo = readMsObject(fdJevois);
 	string pivot, strafe, angle;
 	char dir;
@@ -1178,190 +1161,43 @@ char examineMothership(){
 		}
 		halt();
 	}
-	// Raming Speed
 	goForward(1.25*TICKSPERFOOT);
 	cameraDown();
 	char slot = 'Z';
-	activateObjectDetect(fdJevois);
 	slot = readObject(fdJevois);
-	while((/*slot != 'b' && */slot != 'e')){
-		if ( slot == 'a' || slot == 'c') {
+	while(slot != 'B' || slot != 'E'){
+		if ( slot == 'A' || slot == 'D') {
 			strafeLeft(.1*STRAFETICKSPERFOOT);
-		} else if (slot == 'd' || slot == 'f'){
+		} else if (slot == 'C' || slot == 'F'){
 			strafeRight(.1*STRAFETICKSPERFOOT);
 		} else {
 			strafeLeft(.25*STRAFETICKSPERFOOT);
 		}
 		halt();
-		activateObjectDetect(fdJevois);
 		slot = readObject(fdJevois);
-		cout << "slot = " << slot << endl;
 	}
 	
 	// TODO: Center on B/E
-	int diff = 0;
-	string str;
-	do{
-		// Note to Adam: Do not change these signs -Adam
-		if (diff < 0){
-			cout << "Strafe Left to Center " << -diff*1 << endl;
-			strafeLeft((int)(-diff*1));
-		} else if ( diff > 0)  { //I didn't listen -Adam
-			cout << "Strafe Right to Center " << diff*1 << endl;
-			strafeRight((int)(diff*1));
-		} 
-		halt();
-		activateObjectDetect(fdJevois);
-		str = camGetLineObjDetect(fdJevois);
-		str = str.substr(str.find("jpg")+4,4);
-		str = str.substr(0,str.find_first_of(' '));
-		cout << "diff string [" << str << "]" << endl;
-		diff = atoi((str.c_str()));
-		diff -= 160;
-		//serialTrash(fdJevois);
-	}while(abs(diff) > 10);
 	
-	
+	int center = 120;
+	int current = -1;
+	while (0);
 	
 	// Choose innermost ramp
 	// TODO: Implent trig position calculations
 	//int distLeft=sqrt(pow(0-RobotPosition.curPos.EW),2) + pow((0-RobotPosition.curPos.NS),2));
 	
-	//bool leftRamp;
+	bool leftRamp;
 	/*if(distLeft < distRight)
 		leftRamp = false;
 	else
 		leftRamp = true;
 	*/
-	//leftRamp = true;
+	leftRamp = true;
 	
 	//TODO: Fix positioning system (trig)
+	goBackward(100,0);
 	
-	
-	//Backup 2in
-	
-	goBackward(.167*TICKSPERFOOT,0);
-	pivotLeft(1);
-	if(slot == 'E'){
-
-	//E slot to right
-	rotateToLoad('D');
-	system("python StepperTwelfthCW.py");
-	//right up
-	set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
-	//right down
-	set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
-	
-	goBackward(.229*TICKSPERFOOT,0);
-	//F Rightside
-	counterClockwiseSixth();
-	//right up 
-	set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
-	//right down
-	set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
-	
-	goForward(.458*TICKSPERFOOT);
-	//D rightside
-	clockwiseSixth();
-	clockwiseSixth();
-	//right up
-	set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
-	//right down
-	set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
-	//Move to other side
-	//
-	goForward(1*TICKSPERFOOT);
-	strafeRight(2*STRAFETICKSPERFOOT);
-	goBackward(1*TICKSPERFOOT,0);
-
-	//Left up
-	set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
-	//left down
-	set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
-	//
-	goBackward(.167*TICKSPERFOOT,0);
-	// turn to B
-	counterClockwiseSixth();
-	//Left up
-	set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
-	//left down
-	set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
-	
-	goBackward(.167*TICKSPERFOOT,0);
-	//turn to A
-	counterClockwiseSixth();
-	//Left up
-	set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
-	//left down
-	set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
-	//
-	
-	
-	
-	} else {
-		//C to front
-		rotateToLoad('C');
-		//1/12CW
-		system("python StepperTwelfthCW.py");
-		//B to right
-		
-		//right up
-		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
-		//right down
-		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
-		//
-		goBackward(.229*TICKSPERFOOT,0);
-		// CW to C
-		clockwiseSixth();
-		//right up
-		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
-		//right down
-		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
-		//
-		goForward(.458*TICKSPERFOOT);
-		// CCW x2 to A
-		counterClockwiseSixth();
-		counterClockwiseSixth();
-		//right up
-		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
-		//right down
-		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
-
-		goForward(1*TICKSPERFOOT);
-		strafeRight(2*STRAFETICKSPERFOOT);
-		goBackward(1*TICKSPERFOOT,0);
-
-		// F on left
-		// already there
-		
-		//Left up
-		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
-		//left down
-		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
-		
-		goBackward(.229*TICKSPERFOOT,0);
-
-		// CW to E
-		clockwiseSixth();
-		//Left up
-		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
-		//left down
-		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
-		
-		goBackward(.229*TICKSPERFOOT,0);
-
-		// CW to D
-		clockwiseSixth();
-		//Left up
-		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
-		//left down
-		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
-		//
-	}
-
-
-	//end
-
 	//TODO: Dump along side
 	/*if(leftRamp){
 		stafeRight(.25*TICKSPERFOOT);
@@ -1370,7 +1206,7 @@ char examineMothership(){
 		//align dumpers
 		*/
 		
-	/*if(leftRamp){
+	if(leftRamp){
 		pivotLeft(1);
 	} else {
 		pivotRight(1);
@@ -1392,11 +1228,11 @@ char examineMothership(){
 		pivotRight(1);
 	} else {
 		pivotLeft(1);
-	}*/
+	}
 	//Facing Ramp
 	
 	//dirve to first position
-	/*goForward(.75*TICKSPERFOOT);
+	goForward(.75*TICKSPERFOOT);
 	openClaw();
 	punchersDown();	
 	if((slot == 'E'&& leftRamp) || (slot == 'B'&& !leftRamp)){
@@ -1438,14 +1274,14 @@ char examineMothership(){
 		usleep(500000);
 		punchersDown();
 	}
-	*/
+	
 	//Figure out distance
-	/*goBackward(1.5*TICKSPERFOOT,0);
+	goBackward(1.5*TICKSPERFOOT,0);
 	if (dir == 'r'){
 		pivotLeft(1,ang);
 	} else {
 		pivotRight(1,ang);
-	}*/
+	}
 	goToPointNS(0,0);
 			
 	return side;
@@ -1810,47 +1646,29 @@ int lookForBlock(int blockX, int blockY){
 	return 0;
 }
 
-double MSstartX,MSstartY;
-
 int lookForMothership(){
 	int index;
-	std::pair <double,double> corner0 (1.5,1.5);
-	std::pair <double,double> corner1 (1.5,-2.5);
-	std::pair <double,double> corner2 (-2.5,-2.5);
-	std::pair <double,double> corner3 (-2.5,1.5);
-	
-	pair<double,double> corners[] = {corner0,corner1,corner2,corner3};
-	pair<double,double> start = chooseDest(corners);
-	start.first = MSstartX;
-	start.second =  MSstartY;
-	cout << "start X " << MSstartX << endl;
-	cout << "start Y " << MSstartY << endl;
-	if(MSstartX > 0 && MSstartY > 0)
+	pair<double, double> corners[] = [<1.5,1.5>,<1.5,-2.5>,<-2.5,-2.5>,<-2.5,1.5>];
+	pair<double, double> start = chooseDest(corners);
+	goToPoint(sta
+	if(start == corners[0])
+	{
 		index = 0;
-	else if(MSstartX > 0 && MSstartY < 0)
-		index = 1;
-	else if(MSstartX < 0 && MSstartY < 0)
-		index = 2;
-	else
-		index = 3;
-	corners[index].first = MSstartX;
-	corners[index].second = MSstartY;
-	while(index<4)
-	{	
-		cout << "starting at corner " << index << endl;
-		cout << "corner X " << corners[index].first << endl;
-		cout << "corner Y " << corners[index].second << endl;
-		goToPointNS(corners[index].first*TICKSPERFOOT,corners[index].second*TICKSPERFOOT);
-		++index%4;
-		if(msFound)
-		{
-			cout << "go to Mother ship" << endl;
-			goToPointNS(motherX,motherY);
-			examineMothership();
-			return 0;
-		}
 	}
-	return 0;
+	else if (start == corners[1])
+	{
+		index = 1;
+	}
+	else if(star == corners[2])
+	{
+		index = 2;
+	}
+	else
+	{
+		index = 3;
+	}
+
+	goToPoint(start.first*TICKSPERFOOT,start.second*TICKSPERFOOT);
 }
 
 // 3/20
@@ -1873,8 +1691,6 @@ pair<double,double> chooseDest(pair<double,double> coordinates[]){
 	pair<double,double> sendCoordinates = coordinates[index];
 	curBlockX = coordinates[index].first;
 	curBlockY = coordinates[index].second;
-	MSstartX = coordinates[index].first;
-	MSstartY = coordinates[index].second;
 	coordinates[index].first = 100;
 	coordinates[index].second = 100;
 	return sendCoordinates;
@@ -2299,77 +2115,4 @@ void ctrl_c_handler(int s){
 	gpio_write(pi, ARDUINORESETPIN, 1);
 	//pigpio_stop(pi);
 	exit(1);
-}
-
-pair<double,double>* readJson(){
-	ifstream mars("../cords.json");
-	
-	if(!(mars.is_open())){
-		cout << "File not open" << endl;
-		exit(9);
-	}
-	
-	string line = "init\n";
-	int size;
-	int xCords[6];
-	int yCords[6];
-	
-	getline(mars,line);
-	//cout << line << endl;
-	cout << "Find size" << endl;
-	while(line.find("size") > 100){
-		getline(mars,line);
-		//cout << line << endl;
-	}
-	line = line.substr(line.find_last_of(',')-1,1);
-	size = atoi(line.c_str());
-	cout << "size = " << size << endl;
-	
-	cout << "Find x coords" << endl;
-	while(line.find("x coords") > 100){
-		getline(mars,line);
-		cout << line << endl;
-	}
-	line = line.substr(line.find_first_of('[')+1,size*2-1);
-	cout << "Xlist is " << line << endl;
-	
-	for (int i = 0; i < size; i++){
-		xCords[i] = atoi(&((line.c_str())[i*2]));
-		cout << xCords[i] << endl;
-	}
-	
-	cout << "Find y coords" << endl;
-	while(line.find("y coords") > 100){
-		getline(mars,line);
-		cout << line << endl;
-	}
-	line = line.substr(line.find_first_of('[')+1,size*2-1);
-	cout << "Ylist is " << line << endl;
-	
-	for (int i = 0; i < size; i++){
-		yCords[i] = atoi(&((line.c_str())[i*2]));
-		cout << yCords[i] << endl;
-	}
-	
-	//static pair<double,double> locals[6];
-	
-	for(int i = 0; i < size; i++){
-		locals[i].first=xCords[i]-4;
-		locals[i].second=yCords[i]-4;
-		
-		cout << "locals[" << i << "] = (";
-		cout << locals[i].first << "," << locals[i].second;
-		cout << ")" << endl;
-	}
-	for(int i = size; i < 6; i++){
-		locals[i].first=100;
-		locals[i].second=100;
-		
-		cout << "locals[" << i << "] = (";
-		cout << locals[i].first << "," << locals[i].second;
-		cout << ")" << endl;
-	}
-	numBlocks = size;
-	mars.close();
-	return locals;
 }

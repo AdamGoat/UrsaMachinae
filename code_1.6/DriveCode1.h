@@ -1184,7 +1184,7 @@ char examineMothership(){
 	char slot = 'Z';
 	activateObjectDetect(fdJevois);
 	slot = readObject(fdJevois);
-	while((/*slot != 'b' && */slot != 'e')){
+	while((slot != 'b' && slot != 'e')){
 		if ( slot == 'a' || slot == 'c') {
 			strafeLeft(.1*STRAFETICKSPERFOOT);
 		} else if (slot == 'd' || slot == 'f'){
@@ -1194,7 +1194,7 @@ char examineMothership(){
 		}
 		halt();
 		activateObjectDetect(fdJevois);
-		slot = readObject(fdJevois);
+		slot = readMsSlot(fdJevois);
 		cout << "slot = " << slot << endl;
 	}
 	
@@ -1218,86 +1218,69 @@ char examineMothership(){
 		cout << "diff string [" << str << "]" << endl;
 		diff = atoi((str.c_str()));
 		diff -= 160;
-		//serialTrash(fdJevois);
 	}while(abs(diff) > 10);
-	
-	
-	
-	// Choose innermost ramp
-	// TODO: Implent trig position calculations
-	//int distLeft=sqrt(pow(0-RobotPosition.curPos.EW),2) + pow((0-RobotPosition.curPos.NS),2));
-	
-	//bool leftRamp;
-	/*if(distLeft < distRight)
-		leftRamp = false;
-	else
-		leftRamp = true;
-	*/
-	//leftRamp = true;
-	
-	//TODO: Fix positioning system (trig)
-	
 	
 	//Backup 2in
 	
 	goBackward(.167*TICKSPERFOOT,0);
 	pivotLeft(1);
 	if(slot == 'E'){
+		//E slot to right
+		rotateToLoad('D');
+		system("python StepperTwelfthCW.py");
+		//right up
+		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
+		sleep(1);
+		//right down
+		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
+		
+		goBackward(.229*TICKSPERFOOT,0);
+		//F Rightside
+		counterClockwiseSixth();
+		//right up 
+		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
+		sleep(1);
+		//right down
+		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
+		
+		goForward(.458*TICKSPERFOOT);
+		//D rightside
+		clockwiseSixth();
+		clockwiseSixth();
+		//right up
+		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
+		sleep(1);
+		//right down
+		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
+		//Move to other side
+		//
+		goForward(1*TICKSPERFOOT);
+		strafeRight(2*STRAFETICKSPERFOOT);
+		goBackward(1*TICKSPERFOOT,0);
 
-	//E slot to right
-	rotateToLoad('D');
-	system("python StepperTwelfthCW.py");
-	//right up
-	set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
-	//right down
-	set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
-	
-	goBackward(.229*TICKSPERFOOT,0);
-	//F Rightside
-	counterClockwiseSixth();
-	//right up 
-	set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
-	//right down
-	set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
-	
-	goForward(.458*TICKSPERFOOT);
-	//D rightside
-	clockwiseSixth();
-	clockwiseSixth();
-	//right up
-	set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
-	//right down
-	set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
-	//Move to other side
-	//
-	goForward(1*TICKSPERFOOT);
-	strafeRight(2*STRAFETICKSPERFOOT);
-	goBackward(1*TICKSPERFOOT,0);
-
-	//Left up
-	set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
-	//left down
-	set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
-	//
-	goBackward(.167*TICKSPERFOOT,0);
-	// turn to B
-	counterClockwiseSixth();
-	//Left up
-	set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
-	//left down
-	set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
-	
-	goBackward(.167*TICKSPERFOOT,0);
-	//turn to A
-	counterClockwiseSixth();
-	//Left up
-	set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
-	//left down
-	set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
-	//
-	
-	
-	
+		//Left up
+		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
+		sleep(1);
+		//left down
+		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
+		
+		goBackward(.167*TICKSPERFOOT,0);
+		// turn to B
+		counterClockwiseSixth();
+		//Left up
+		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
+		sleep(1);
+		//left down
+		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
+		
+		goBackward(.167*TICKSPERFOOT,0);
+		//turn to A
+		counterClockwiseSixth();
+		//Left up
+		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
+		sleep(1);
+		//left down
+		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
 	} else {
 		//C to front
 		rotateToLoad('C');
@@ -1307,6 +1290,7 @@ char examineMothership(){
 		
 		//right up
 		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
+		sleep(1);
 		//right down
 		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
 		//
@@ -1315,15 +1299,17 @@ char examineMothership(){
 		clockwiseSixth();
 		//right up
 		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
+		sleep(1);
 		//right down
 		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
-		//
+		
 		goForward(.458*TICKSPERFOOT);
 		// CCW x2 to A
 		counterClockwiseSixth();
 		counterClockwiseSixth();
 		//right up
 		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERUP);
+		sleep(1);
 		//right down
 		set_servo_pulsewidth(pi,RIGHTPUNCHERPIN,RIGHTPUNCHERDOWN);
 
@@ -1336,6 +1322,7 @@ char examineMothership(){
 		
 		//Left up
 		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
+		sleep(1);
 		//left down
 		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
 		
@@ -1345,6 +1332,7 @@ char examineMothership(){
 		clockwiseSixth();
 		//Left up
 		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
+		sleep(1);
 		//left down
 		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
 		
@@ -1354,98 +1342,14 @@ char examineMothership(){
 		clockwiseSixth();
 		//Left up
 		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERUP);
+		sleep(1);
 		//left down
 		set_servo_pulsewidth(pi,LEFTPUNCHERPIN,LEFTPUNCHERDOWN);
-		//
+		
 	}
-
 
 	//end
 
-	//TODO: Dump along side
-	/*if(leftRamp){
-		stafeRight(.25*TICKSPERFOOT);
-		pivotLeft(1);
-		//get closer?
-		//align dumpers
-		*/
-		
-	/*if(leftRamp){
-		pivotLeft(1);
-	} else {
-		pivotRight(1);
-	}
-	
-	//TODO: Figure out distance
-	goForward(1*TICKSPERFOOT);
-	
-	if(leftRamp){
-		pivotRight(1);
-	} else {
-		pivotLeft(1);
-	}
-	
-	//TODO: Figure out distance
-	goForward(.75*TICKSPERFOOT);
-	
-	if(leftRamp){
-		pivotRight(1);
-	} else {
-		pivotLeft(1);
-	}*/
-	//Facing Ramp
-	
-	//dirve to first position
-	/*goForward(.75*TICKSPERFOOT);
-	openClaw();
-	punchersDown();	
-	if((slot == 'E'&& leftRamp) || (slot == 'B'&& !leftRamp)){
-		rotateToLoad('A');
-		system("python StepperTwelfthCW");
-		//CD
-		punchersUp();
-		usleep(500000);
-		punchersDown();
-		goForward(.25*TICKSPERFOOT);
-		counterClockwiseSixth();
-		//EB
-		punchersUp();
-		usleep(500000);
-		punchersDown();
-		goForward(.25*TICKSPERFOOT);
-		counterClockwiseSixth();
-		//AF
-		punchersUp();
-		usleep(500000);
-		punchersDown();
-	} else if((slot == 'B'&& leftRamp) || (slot == 'E'&& !leftRamp)) {
-		rotateToLoad('B');
-		system("python StepperTwelfthCW");
-		//AF
-		punchersUp();
-		usleep(500000);
-		punchersDown();
-		goForward(.25*TICKSPERFOOT);
-		clockwiseSixth();
-		//EB
-		punchersUp();
-		usleep(500000);
-		punchersDown();
-		goForward(.25*TICKSPERFOOT);
-		clockwiseSixth();
-		//CD
-		punchersUp();
-		usleep(500000);
-		punchersDown();
-	}
-	*/
-	//Figure out distance
-	/*goBackward(1.5*TICKSPERFOOT,0);
-	if (dir == 'r'){
-		pivotLeft(1,ang);
-	} else {
-		pivotRight(1,ang);
-	}*/
 	goToPointNS(0,0);
 			
 	return side;
@@ -2222,7 +2126,7 @@ void waitForGreen(){
 	cout << "Waiting for Green Button" << endl;
 	wait_for_edge(pi, GREENBUTTONPIN, FALLING_EDGE, 5000);
 	cout << "Green Pressed!" << endl;
-	sleep(5);
+	sleep(1);
 	cout << "Here we go!" << endl;
 	return;
 }
@@ -2265,6 +2169,7 @@ void servoOff(int servoPin){
 
 void endProgram(){
 	blinkLED();
+	halt();
 	rebootCam(fdJevois);
 	serialClose(fdArduino);
 	serialClose(fdJevois);

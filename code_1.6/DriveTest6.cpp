@@ -60,22 +60,7 @@ int main(){
 	RobotPosition.curPos.EW	= startX*TICKSPERFOOT;
 
 	readJson();
-	/*pair<double,double> blk1;
-	pair<double,double> blk2;
-	pair<double,double> blk3;
 	
-	blk1.first = -1;
-	blk1.second = 0;
-	blk2.first = -300;
-	blk2.second = 0;
-	blk3.first = 200;
-	blk3.second = -2;
-
-	locals[0] = blk1;
-	locals[1] = blk2;
-	locals[2] = blk3;*/
-
-	//numBlocks = 3;
 	openClaw();
 	//sleep(2);
 	//cameraUp();
@@ -89,7 +74,7 @@ int main(){
 	waitForGreen();
 
 	cameraDrive();
-	for (int i = 0; i < numBlocks-3; i++){
+	for (int i = 0; i < numBlocks-0; i++){
 		activateObjectDetect(fdJevois);
 		pair<double,double> result;
 		result = chooseDest(locals);
@@ -101,7 +86,7 @@ int main(){
 		cout << "Block " << i << " found" <<endl;
 		char letter = getBlock();
 		cout << "Block is " << letter << endl;
-		rotateToLoad(letter);
+		rotateToLo ad(letter);
 		liftClaw();
 		twistIn();
 		sleep(1);

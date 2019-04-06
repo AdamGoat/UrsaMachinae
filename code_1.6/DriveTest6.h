@@ -2264,6 +2264,7 @@ void servoOff(int servoPin){
 }
 
 void endProgram(){
+	halt();
 	blinkLED();
 	rebootCam(fdJevois);
 	serialClose(fdArduino);

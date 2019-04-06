@@ -26,6 +26,7 @@ char readObject(int fd);
 char readObject(string line);
 string readMsObject(int fd);
 string camGetLineObjDetect(int fd);
+char readMsSlot(int fd);
 
 int pingCam(int fd){
 	int amt = 0;
@@ -55,7 +56,7 @@ int pingCam(int fd){
 char readObject(string line){
 	cout << "Reading Object String" << endl;
 	cout << "Object Info: " << line << endl;
-	char obj = (line.c_str())[line.find_first_of(' ')+7];
+	char obj = (line.c_str())[line.find_first_of(' ')+1];
 	cout << "Object rtn = " << obj << endl;
 	return obj;
 }
@@ -69,6 +70,16 @@ char readObject(int fd){
 	pingCam(fd);
 	return obj;
 }
+char readMsSlot(int fd){
+	cout << "Reading MS Slot" << endl;
+	string line = camGetLine(fd);
+	camStreamOff(fd);
+	cout << "MS slot Info: " << line << endl;
+	char obj = (line.c_str())[line.find_first_of('_')+1];
+	pingCam(fd);
+	return obj;
+}
+
 int readObjectX(int fd){
 	cout << "Reading for Object X Pos" << endl;
 	string line = camGetLine(fd);

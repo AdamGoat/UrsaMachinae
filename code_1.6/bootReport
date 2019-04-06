@@ -1,0 +1,16 @@
+Initilize MotorHAT on 97
+Init PWM on address 97
+pwmHatFD = 3
+Initilize MotorHAT on 96
+Init PWM on address 96
+pwmHatFD = 4
+Start pigpiod
+pi = 0
+Callback rtn is 0
+Open Arduino
+fdArduino = 7
+SimplePollRotator example for the RotaryEncoder library.
+Arduino Open
+Open Jevois
+fdJevois = -1
+ERROR!!! Can't talk to jevois!
